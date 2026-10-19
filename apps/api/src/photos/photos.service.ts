@@ -136,6 +136,29 @@ export class PhotosService {
     return { buffer, mimeType: photo.mimeType };
   }
 
+  async deleteProjectPhoto(projectId: string, photoId: string, requestId?: string): Promise<void> {
+    const photo = await this.photos.findOne({
+      where: { id: photoId, projectId },
+      select: { id: true, storageKey: true },
+    });
+    if (!photo) throw new NotFoundException('Photo not found');
+
+    // Remove visibility first. A database failure must leave the original bytes intact.
+    const result = await this.photos.delete({ id: photoId, projectId });
+    if (result.affected === 0) throw new NotFoundException('Photo not found');
+    try {
+      await this.storage.deletePhoto(photo.storageKey);
+    } catch (error) {
+      // The record is already gone: do not report a failed deletion to the UI.
+      // Cleanup is best effort; a future reconciliation job must handle orphan files.
+      this.logger.error({
+        message: 'Photo removed but file cleanup failed',
+        requestId, projectId, photoId, storageKey: photo.storageKey,
+        errorType: error instanceof Error ? error.name : 'UnknownError',
+      });
+    }
+  }
+
   // Query and upload share this public contract; persistence-only fields stay private.
   private toResponse(photo: Photo): PhotoResponseDto {
     return {

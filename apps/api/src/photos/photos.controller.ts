@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, StreamableFile, UploadedFile, UseInterceptors,
+  Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query, Res, StreamableFile, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -39,6 +39,19 @@ export class PhotosController {
       disposition: 'inline',
       length: content.buffer.length,
     });
+  }
+
+  @Delete(':photoId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteProjectPhoto(
+    @Param('projectId', new ParseUUIDPipe()) projectId: string,
+    @Param('photoId', new ParseUUIDPipe()) photoId: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    const requestId: unknown = response.locals.requestId;
+    return this.photos.deleteProjectPhoto(
+      projectId, photoId, typeof requestId === 'string' ? requestId : undefined,
+    );
   }
 
   @Post()
