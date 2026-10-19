@@ -86,7 +86,7 @@ Previews: [desktop empty](images/photo-management-empty.png), [desktop populated
 
 The README records the latest test counts and commands. Backend unit tests cover handlers, service rules, validation, storage commands and failure recovery using I/O substitutes; frontend component tests cover pending/error/recovery interactions with mocked HTTP. These tests do not prove full route wiring, database constraints or provider permissions.
 
-Separate local checks exercised real PostgreSQL/S3Mock and Chrome, including upload → list → view/resize → delete, Unicode filenames, API-restart persistence and responsive layouts. The temporary scripts are not a committed integration/E2E suite. Fresh-clone setup, final-feature persistence across storage-container restarts, cross-browser/full accessibility and load testing remain unverified.
+A clean local checkout with cached dependencies and fresh isolated storage passed setup, migration/seed and `pnpm dev`. Real PostgreSQL/S3Mock and Chrome checks covered upload → list → view/resize → delete, format/size rejection, Unicode filenames and responsive layouts. App restart, storage-container recreation and repeated seed preserved the photo record and identical original bytes. These temporary checks are not a committed integration/E2E suite; cross-browser/full accessibility, load testing and real AWS behaviour remain unverified.
 
 ## Next increments
 
