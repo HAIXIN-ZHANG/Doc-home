@@ -6,7 +6,7 @@ Deliver one complete workflow for a project manager: open a seeded project's pho
 
 This is the selected slice of the broader **Related assets** Epic. The [product direction](PRODUCT_BLUEPRINT.md) explains possible expansion. This document defines current implementation tasks and acceptance criteria; it does not claim planned features are already delivered.
 
-**Current state:** the pnpm workspace, Next.js/Panda frontend, NestJS API, PostgreSQL connection, validated environment configuration, S3 client/bucket health check and health route exist. Frontend/API run locally on ports 3000/3001; Docker runs PostgreSQL and S3Mock for local object storage. Lint, typecheck, build and local health/proxy checks passed during framework setup. Project/Photo entities, the initial migration, repeatable demo seed, shared database CLI options and feature modules now exist. The photo query endpoint, response types, UUID validation and basic request/error logs now exist. Upload and unit tests now exist. Original-image read and optional proportional w/h resizing are implemented. All four backend endpoints are implemented and verified; the photo page is **not implemented**; Jest/TypeScript unit tests now cover the four implemented photo handlers and related logic.
+**Current state:** the pnpm workspace, Next.js/Panda frontend, NestJS API, PostgreSQL connection, validated environment configuration, S3 client/bucket health check and health route exist. Frontend/API run locally on ports 3000/3001; Docker runs PostgreSQL and S3Mock for local object storage. Lint, typecheck, build and local health/proxy checks passed during framework setup. Project/Photo entities, the initial migration, repeatable demo seed, shared database CLI options and feature modules now exist. The photo query endpoint, response types, UUID validation and basic request/error logs now exist. Upload and unit tests now exist. Original-image read and optional proportional w/h resizing are implemented. All four backend endpoints are implemented and verified; the web page now displays project context, empty/populated lists and original-image links; web upload/delete and frontend automated suites are **not implemented**; Jest/TypeScript unit tests now cover the four implemented photo handlers and related logic.
 
 **Time boundary:** the original exercise allows one day. Our implementation target for the reduced feature is roughly 4–6 additional focused hours, with integration uncertainty. Planning and framework time already spent must also be disclosed. Estimates are not actual time records.
 
@@ -146,6 +146,10 @@ This order prioritises a correct list after a committed database deletion. A fai
 
 ## 8. Scope E — one frontend page
 
+**First increment implemented:** project name/address, count, empty/populated lists, bounded preview and original View, preview fallback, loading/not-found/error routes, and 1/2/3-column responsive layout. Initial server fetch seeds a page-scoped TanStack Query cache; hydration does not duplicate the fetch. Browser requests use the existing /api rewrite. Upload form and Delete action are intentionally absent until their increments work. Shared API response decoding rejects malformed data rather than fabricating an empty list.
+
+**Verification:** web typecheck/lint/production build passed. One-off real-browser checks (Playwright + installed Chrome) exercised empty/populated projects, original popup, failed preview, missing-project navigation and API-offline error/retry recovery at 1440/834/390/320 widths. Temporary fixtures/processes were cleaned up. No new frontend unit/E2E suite was committed; controlled slow-loading, Safari/Firefox and full accessibility audits remain unverified.
+
 **Route:** `/projects/:projectId/photos`. `/` can redirect to the known seeded project's page after the seed exists; it must not become a project dashboard.
 
 ```text
@@ -172,11 +176,11 @@ filename.jpg    kitchen.png
 
 Keep page/container, upload control and photo list understandable; do not create a component library. For a mutation timeout, tell the user the result could not be confirmed and refresh the list before inviting a retry. Do not automatically retry upload: the first attempt may already have saved successfully. If a successful mutation is followed by a failed refresh, distinguish “saved/deleted, list refresh failed” from “operation failed”.
 
-### Design reference — completed, implementation pending
+### Design reference — display/view implemented, mutations pending
 
 [Editable Figma file](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home-%C2%B7-Photo-management?node-id=3-5)
 
-One photo page has two designed states: empty and populated. Each is shown at Desktop (1440px), Tablet (834px) and Mobile (390px), for six frames total. The screens use editable text, SVG icons, component instances and bound variables. They are design references, not a wired prototype or implemented feature.
+One photo page has two designed states: empty and populated. Each is shown at Desktop (1440px), Tablet (834px) and Mobile (390px), for six frames total. The screens use editable text, SVG icons, component instances and bound variables. They are design references rather than a Figma clickable prototype. The web display/view states are now implemented; upload/delete controls follow in separate increments.
 
 | Viewport | Intended implementation |
 | --- | --- |
