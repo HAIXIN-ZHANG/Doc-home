@@ -89,3 +89,11 @@ The [photo scope plan](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) defines the c
 The [responsive photo-page design](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#design-reference--completed-implementation-pending) includes the editable Figma link, two UI states, three viewport layouts and exported previews. The business UI is not implemented yet. The same change includes the Panda presets, semantic color tokens, shared text styles, self-hosted Inter font and reusable Button. Breakpoints are named `mobile` (0rem), `tablet` (48rem) and `desktop` (64rem). Photo components and the grid remain feature work.
 
 Theme foundation checks passed: lint, typecheck and both production builds. The production homepage, generated CSS and self-hosted font were served successfully. Responsive photo-page behaviour remains to be implemented and verified.
+
+## Photo API progress
+
+1 of four photo endpoints implemented. Frontend remains pending. Jest/TypeScript tests and consolidated verification are later review commits.
+
+- Implemented: GET /projects/:projectId/photos (200, malformed UUID 400, missing project 404), explicit public fields, request IDs and safe error/access logs.
+
+These commits are a user-authorized regrouping for review. Tests and the final verification walkthrough follow the four API implementations. They do not claim the original work happened in this exact order.
