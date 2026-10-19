@@ -283,6 +283,14 @@ Uploads are **not automatically retried**. Network/timeout and unrecognised serv
 
 [Figma — editable photo management design](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home-%C2%B7-Photo-management?node-id=3-5)
 
-The [responsive photo-page design](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#design-reference) includes the editable Figma link, two UI states, three viewport layouts and exported previews. Display/view and single-photo upload are implemented; Delete remains a later increment. The same change includes the Panda presets, semantic color tokens, shared text styles, self-hosted Inter font and reusable Button. Breakpoints are named `mobile` (0rem), `tablet` (48rem) and `desktop` (64rem). Photo cards and the responsive grid now use those foundations.
+The [responsive photo-page design](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#design-reference) includes the editable Figma link, two UI states, three viewport layouts and exported previews. Display/view, single-photo upload and confirmed deletion are implemented. The same change includes the Panda presets, semantic color tokens, shared text styles, self-hosted Inter font and reusable Button. Breakpoints are named `mobile` (0rem), `tablet` (48rem) and `desktop` (64rem). Photo cards and the responsive grid now use those foundations.
 
-Theme foundation checks passed: lint, typecheck and both production builds. The production homepage, generated CSS and self-hosted font were served successfully. Responsive photo-page behaviour remains to be implemented and verified.
+Theme foundation checks passed: lint, typecheck and both production builds. The production homepage, generated CSS and self-hosted font were served successfully. The responsive page has been checked in a real browser, including upload and deletion interactions.
+
+## Frontend deletion
+
+Each photo card offers View and Delete. Delete asks for native browser confirmation naming the file. Cancel sends no request. The card stays visible while the request is pending and is removed from the shared query cache only after 204. A follow-up GET reconciles the rest of the list.
+
+A rejected request preserves the card. A network/5xx/404 result requires a successful list refresh before another deletion; requests are never automatically retried. If deletion succeeded but refresh failed, the UI says so and does not restore the confirmed-deleted card. Deletion feedback survives a card disappearing. Native confirmation keeps keyboard/focus handling simple at the cost of browser-controlled appearance.
+
+Deletion checks passed against the local API, PostgreSQL and S3Mock in Chrome: cancel, rejected request preserving the card, pending state, successful deletion, reload persistence, and desktop/mobile layouts without horizontal overflow. These checks used a temporary browser script; the committed frontend test suite follows separately.

@@ -5,9 +5,18 @@ import { useState } from 'react';
 import { css } from '../../../styled-system/css';
 import { button } from '../../../styled-system/recipes';
 import { photoContentUrl } from './photo-urls';
+import { Button } from '@/components/ui/button';
 import type { ProjectPhoto } from './photo-types';
 
-export function PhotoCard({ projectId, photo }: { projectId: string; photo: ProjectPhoto }) {
+export interface PhotoDeleteActions {
+  onDelete: (photo: ProjectPhoto) => void;
+  deletingPhotoId?: string;
+  deletionBlocked: boolean;
+}
+
+export function PhotoCard({ projectId, photo, onDelete, deletingPhotoId, deletionBlocked }: {
+  projectId: string; photo: ProjectPhoto;
+} & PhotoDeleteActions) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const size = photo.sizeBytes >= 1024 * 1024
     ? `${(photo.sizeBytes / (1024 * 1024)).toFixed(1)} MiB`
@@ -38,11 +47,16 @@ export function PhotoCard({ projectId, photo }: { projectId: string; photo: Proj
         <p className={css({ textStyle: 'small', color: 'fg.muted' })}>
           {photo.mimeType === 'image/jpeg' ? 'JPG' : 'PNG'} · {size}
         </p>
+        <div className={css({ display: 'flex', gap: '2', flexWrap: 'wrap' })}>
         <a href={photoContentUrl(projectId, photo.id)} target="_blank" rel="noopener noreferrer"
           aria-label={`View original ${photo.originalName} (opens in a new tab)`}
           className={button({ visual: 'secondary' })}>
           View
         </a>
+        <Button visual="danger" disabled={deletionBlocked} aria-label={`Delete ${photo.originalName}`} onClick={() => onDelete(photo)}>
+          {deletingPhotoId === photo.id ? 'Deleting…' : 'Delete'}
+        </Button>
+        </div>
       </div>
     </li>
   );

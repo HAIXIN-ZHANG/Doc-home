@@ -335,3 +335,7 @@ The original exercise permits one representative subset, but the company's agree
 | Best-effort file cleanup | Makes partial failures explicit without a job system | Orphans remain possible; add reconciliation when needed |
 
 At the end of the exercise, explain the next steps from the blueprint rather than implying they were delivered. Do not expand this scope to make the code look more elaborate.
+
+## Frontend deletion progress
+
+The third frontend increment connects Delete with filename confirmation, pending state, shared-cache removal after 204, follow-up refresh and truthful error/uncertainty feedback. Cancel does not send a request; failed deletion keeps the card. Frontend automated tests follow in a separate commit, as requested. Test dependency/pnpm-lockfile edits already in Changes are not part of this feature commit.

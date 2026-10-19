@@ -1,12 +1,15 @@
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { css } from '../../../styled-system/css';
+import type { PhotoDeleteActions } from './photo-card';
 import { PhotoCard } from './photo-card';
 import { PhotoLayout } from './photo-layout';
 import { DEMO_PROJECT_ID } from './photo-urls';
 import type { ProjectPhotos } from './photo-types';
 
-export function PhotoPage({ project, photos, children }: ProjectPhotos & { children?: ReactNode }) {
+export function PhotoPage({ project, photos, children, onDelete, deletingPhotoId, deletionBlocked }: ProjectPhotos & {
+  children?: ReactNode;
+} & PhotoDeleteActions) {
   return (
     <PhotoLayout>
       <section aria-labelledby="project-name" className={css({ display: 'flex', flexDirection: 'column', gap: '2', minW: '0' })}>
@@ -43,7 +46,7 @@ export function PhotoPage({ project, photos, children }: ProjectPhotos & { child
             display: 'grid', gridTemplateColumns: { mobile: 'minmax(0, 1fr)', tablet: 'repeat(2, minmax(0, 1fr))', desktop: 'repeat(3, minmax(0, 1fr))' },
             gap: { mobile: '4', tablet: '6' },
           })}>
-            {photos.map(photo => <PhotoCard key={photo.id} projectId={project.id} photo={photo} />)}
+            {photos.map(photo => <PhotoCard key={photo.id} projectId={project.id} photo={photo} onDelete={onDelete} deletingPhotoId={deletingPhotoId} deletionBlocked={deletionBlocked} />)}
           </ul>
         )}
       </section>

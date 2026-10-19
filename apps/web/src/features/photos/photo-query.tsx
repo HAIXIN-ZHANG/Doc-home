@@ -1,19 +1,26 @@
 'use client';
 
 import { useState } from 'react';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { css } from '../../../styled-system/css';
 import { PhotoPage } from './photo-page';
 import { PhotoUpload } from './photo-upload';
 import { projectPhotosPath } from './photo-urls';
 import { parseProjectPhotos } from './photo-types';
+import { deletePhoto, PhotoDeleteError } from './photo-delete-api';
+import type { ProjectPhoto } from './photo-types';
 import type { ProjectPhotos } from './photo-types';
 
 function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
   const projectId = initialData.project.id;
+  const client = useQueryClient();
+  const queryKey = ['project-photos', projectId];
+  const [deletionFeedback, setDeletionFeedback] = useState<{ error: boolean; message: string } | null>(null);
+  const [needsRefresh, setNeedsRefresh] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const query = useQuery({
-    queryKey: ['project-photos', projectId],
+    queryKey,
     initialData,
     queryFn: async ({ signal }) => {
       const response = await fetch(`/api${projectPhotosPath(projectId)}`, {
@@ -29,8 +36,56 @@ function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
     retry: false,
   });
 
+  const deletion = useMutation({
+    mutationFn: async (photo: ProjectPhoto) => {
+      // Prevent an older in-flight query from restoring a confirmed-deleted card.
+      await client.cancelQueries({ queryKey });
+      await deletePhoto(projectId, photo.id);
+      // Update only after 204, then reconcile the remaining list with the server.
+      client.setQueryData<ProjectPhotos>(queryKey, current => current ? {
+        ...current, photos: current.photos.filter(item => item.id !== photo.id),
+      } : current);
+      try { await query.refetch({ throwOnError: true }); return true; }
+      catch { return false; }
+    },
+    retry: false,
+  });
+
+  async function handleDelete(photo: ProjectPhoto) {
+    if (deletion.isPending || needsRefresh || refreshing) return;
+    // Native confirmation supplies keyboard/focus handling without a custom modal.
+    if (!window.confirm(`Delete "${photo.originalName}"? This cannot be undone.`)) return;
+    setDeletionFeedback(null);
+    try {
+      const refreshed = await deletion.mutateAsync(photo);
+      setNeedsRefresh(!refreshed);
+      setDeletionFeedback(refreshed
+        ? { error: false, message: `Deleted ${photo.originalName}.` }
+        : { error: true, message: 'Photo deleted, but the list could not be refreshed. Refresh the photos before another deletion.' });
+    } catch (error) {
+      setNeedsRefresh(error instanceof PhotoDeleteError ? error.needsRefresh : true);
+      setDeletionFeedback({ error: true, message: error instanceof PhotoDeleteError ? error.message : 'The deletion result could not be confirmed. Refresh the photos before trying again.' });
+    }
+  }
+
+  async function refreshAfterDeletion() {
+    if (refreshing || deletion.isPending) return;
+    setRefreshing(true);
+    try {
+      await query.refetch({ throwOnError: true });
+      setNeedsRefresh(false);
+      setDeletionFeedback({ error: false, message: 'Photos refreshed. Check the list before deleting again.' });
+    } catch {
+      setDeletionFeedback({ error: true, message: 'The photos could not be refreshed. Try again before deleting.' });
+    } finally { setRefreshing(false); }
+  }
+
   return (
-    <PhotoPage {...query.data}>
+    <PhotoPage {...query.data} onDelete={photo => { void handleDelete(photo); }}
+      deletingPhotoId={deletion.isPending ? deletion.variables?.id : undefined}
+      deletionBlocked={deletion.isPending || needsRefresh || refreshing}>
+      {deletionFeedback ? <p role={deletionFeedback.error ? 'alert' : 'status'} className={css({ textStyle: 'small', color: deletionFeedback.error ? 'status.danger' : 'status.success' })}>{deletionFeedback.message}</p> : null}
+      {needsRefresh ? <Button visual="secondary" disabled={refreshing} onClick={() => { void refreshAfterDeletion(); }}>{refreshing ? 'Refreshing…' : 'Refresh after deletion'}</Button> : null}
       <PhotoUpload projectId={projectId} refreshPhotos={async () => {
         await query.refetch({ throwOnError: true });
       }} />
