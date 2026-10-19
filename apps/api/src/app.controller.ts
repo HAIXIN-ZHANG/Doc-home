@@ -1,18 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { StorageService } from './storage/storage.service.js';
+import { HealthService } from './health/health.service.js';
 
 @Controller()
 export class AppController {
-  constructor(
-    private readonly dataSource: DataSource,
-    private readonly storage: StorageService,
-  ) {}
+  constructor(private readonly healthService: HealthService) {}
 
   @Get('health')
-  async health(): Promise<{ status: 'ok' }> {
-    // This is readiness for both dependencies, not just a process-alive check.
-    await Promise.all([this.dataSource.query('SELECT 1'), this.storage.checkConnection()]);
-    return { status: 'ok' };
+  health(): Promise<{ status: 'ok' }> {
+    return this.healthService.check();
   }
 }

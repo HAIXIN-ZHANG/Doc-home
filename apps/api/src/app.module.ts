@@ -1,25 +1,22 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller.js';
 import { validateEnvironment } from './config/environment.js';
-import { StorageService } from './storage/storage.service.js';
+import { DatabaseModule } from './database/database.module.js';
+import { HealthService } from './health/health.service.js';
+import { PhotosModule } from './photos/photos.module.js';
+import { ProjectsModule } from './projects/projects.module.js';
+import { StorageModule } from './storage/storage.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env', validate: validateEnvironment }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        url: config.getOrThrow<string>('DATABASE_URL'),
-        autoLoadEntities: true,
-        // Keep schema changes explicit and reviewable through migrations.
-        synchronize: false,
-      }),
-    }),
+    DatabaseModule,
+    ProjectsModule,
+    PhotosModule,
+    StorageModule,
   ],
   controllers: [AppController],
-  providers: [StorageService],
+  providers: [HealthService],
 })
 export class AppModule {}
