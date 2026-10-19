@@ -1,6 +1,6 @@
 # Doc-home
 
-Sync Technologies take-home exercise. Current status: application/theme and database foundations, plus project photo query, upload and file-read APIs, are implemented. All four photo endpoints are implemented. The web page now displays project details, empty/populated photo lists and original-image links. Web photo upload is implemented; Delete controls and automated frontend tests remain pending.
+Sync Technologies take-home exercise. Current status: application/theme and database foundations, plus project photo query, upload and file-read APIs, are implemented. All four photo endpoints are implemented. The web page now displays project details, empty/populated photo lists and original-image links. Web photo upload and confirmed deletion are implemented. Focused Jest/React Testing Library regression tests cover mutation coordination and recovery; the committed Playwright E2E suite and CI remain pending.
 
 ## Structure
 
@@ -109,7 +109,7 @@ curl -i -F 'file=@/absolute/path/to/photo.png' \
 
 - Accepts nonempty JPEG/PNG content, up to and including **5 MiB** (application policy).
 - Uses Nest's content-signature validator, disables MIME fallback and uses the detected MIME type for storage/metadata. A renamed text file is rejected; a genuine PNG with a different declared MIME type is accepted as PNG. This is signature detection, not full image decoding or malware scanning.
-- Filenames must contain 1–255 characters after trimming and no control characters. Filenames are display metadata; generated UUID-based keys prevent same-name overwrites.
+- Browser multipart filenames are decoded as UTF-8 so names such as `厨房.png` are preserved. Filenames must contain 1–255 characters after trimming and no control characters. Filenames are display metadata; generated UUID-based keys prevent same-name overwrites.
 - Missing/empty/extra/wrong-field files or invalid filenames/UUIDs return 400; absent project 404; oversize 413; unsupported content 415; unexpected storage/database failure 500. Multipart parser limits run before controller pipes, so when several inputs are invalid, the first detected error can vary.
 - The API checks project existence, writes the original bytes, then saves metadata. A failed metadata save triggers best-effort object deletion. Cleanup failure is logged with the request ID and server-generated object key without replacing the original error. There is no shared SQL/S3 transaction, background reconciliation or upload idempotency. Process crashes, uncertain put/commit outcomes and failed cleanup remain limitations; do not blindly retry an ambiguous successful upload.
 - Memory-buffered uploads keep this small flow simple; concurrent requests can still consume substantial memory. Large files/high concurrency require a different upload strategy.
@@ -182,7 +182,7 @@ An isolated Nest HTTP server reused the actual controller, service, middleware a
 
 The upload unit cases now run with Jest and TypeScript. They cover content validation, inclusive size limits, filenames, write ordering, same-name independence, missing project, failed object upload, failed metadata save and failed compensation logging/original-error preservation. The previous `.test.mjs` file and Node-runner command have been removed.
 
-A separate temporary HTTP check started the real compiled API against local PostgreSQL/S3Mock. It verified 201, detected MIME type, stored object bytes/content type, generated keys, duplicate filenames, exact 5 MiB acceptance, query visibility, and rejection of missing/empty/multiple/unexpected file/form fields, long filenames, invalid UUID, missing project, oversized data and disguised text. Dedicated test records and objects were removed. Fault compensation was covered by the unit tests, not by disrupting the real database/storage. Those upload checks covered the API; web upload controls remain pending. Read/resize verification is recorded below.
+A separate temporary HTTP check started the real compiled API against local PostgreSQL/S3Mock. It verified 201, detected MIME type, stored object bytes/content type, generated keys, duplicate filenames, exact 5 MiB acceptance, query visibility, and rejection of missing/empty/multiple/unexpected file/form fields, long filenames, invalid UUID, missing project, oversized data and disguised text. Dedicated test records and objects were removed. Fault compensation was covered by the unit tests, not by disrupting the real database/storage. Those checks covered the API; later web upload/deletion verification is recorded below. Read/resize verification is recorded below.
 
 ### Photo read verification
 
@@ -215,13 +215,13 @@ All tests and the Jest configuration are TypeScript. Specs live beside the code 
 | HTTP filter / middleware | Safe error bodies, request correlation, log levels, no sensitive-message leakage and no duplicate responses |
 | Environment / health | Required values, safe configuration errors, port/bucket/protocol rules and dependency readiness |
 
-The current suite has **9 suites and 118 passing cases**, including parameterized validation cases. Nest testing providers replace repository/storage I/O, and `aws-sdk-client-mock` intercepts SDK commands. Resize tests use real Sharp on small generated images, without object storage. These tests do not exercise full HTTP route/interceptor wiring, SQL constraints or real IAM; retain the separate runtime checks for those boundaries.
+The current suite has **9 suites and 119 passing cases**, including parameterized validation cases. Nest testing providers replace repository/storage I/O, and `aws-sdk-client-mock` intercepts SDK commands. Resize tests use real Sharp on small generated images, without object storage. These tests do not exercise full HTTP route/interceptor wiring, SQL constraints or real IAM; retain the separate runtime checks for those boundaries.
 
 Coverage is collected for the listed photo/storage/HTTP/config/health implementation files, excluding specs, module wiring, entity declarations and type-only response DTOs. The coverage command reports this selected scope; it is not whole-repository or end-to-end coverage. Input-pixel/processing-time stress, high concurrency and UI tests remain outside this suite.
 
 ## Manual backend walkthrough
 
-**Backend status:** query, upload, image read/resize and deletion are implemented and checked against local PostgreSQL/S3Mock. The selected backend feature loop is complete; frontend display/view is implemented, while web upload/delete remain pending.
+**Backend status:** query, upload, image read/resize and deletion are implemented and checked against local PostgreSQL/S3Mock. The selected backend feature loop is complete; frontend display/view, upload and confirmed deletion are implemented.
 
 After the initial `.env`/migration/seed setup described above, use a terminal in the repository root:
 
@@ -265,7 +265,7 @@ The initial query runs in a Next.js server component against `API_INTERNAL_URL` 
 
 Cards request bounded previews (`w=800&h=500`) directly from the API, with Next image optimization disabled to avoid a second transform cache. The original opens in a new tab with noopener/noreferrer and an accessible label. A failed preview shows a local placeholder without removing the name or View link. Local Figma SVGs retain their original root dimensions. Photos come from the API, not the illustrative Figma sample images.
 
-**Deliberate increment boundary:** the upload panel is now functional; the Delete action remains absent until its increment works. No inactive business controls are added. The existing theme, page layout and two collection states follow the design; header/page max-width and gutters adapt at mobile/tablet/desktop thresholds. The frontend component/browser test suites will be added after upload/delete, per the agreed order.
+**Implemented controls:** upload and confirmed Delete are functional. No inactive business controls are added. The existing theme, page layout and two collection states follow the design; header/page max-width and gutters adapt at mobile/tablet/desktop thresholds. Focused component regression tests follow the feature commits; the committed Playwright E2E suite remains pending.
 
 **Checks completed:** web typecheck, zero-warning ESLint and production build passed. A one-off Playwright check using installed Chrome, production Next.js on localhost:3100 and actual Nest/PostgreSQL/S3Mock verified empty/populated projects, actual preview loading, original-image popup, broken-preview fallback, missing project/demo navigation and server-load failure → Try again → recovery. Desktop 1440, tablet 834, mobile 390 and narrow 320 were checked for column counts and horizontal overflow. No uncaught page errors occurred in the successful flow; deliberately broken images/offline requests produce expected failed-request diagnostics. Dedicated fixtures and processes were cleaned up. Screenshots/scripts stayed outside Git. Loading UI is implemented but was not separately tested with a controlled slow response; Safari/Firefox and automated accessibility audits were not run.
 
@@ -293,4 +293,14 @@ Each photo card offers View and Delete. Delete asks for native browser confirmat
 
 A rejected request preserves the card. A network/5xx/404 result requires a successful list refresh before another deletion; requests are never automatically retried. If deletion succeeded but refresh failed, the UI says so and does not restore the confirmed-deleted card. Deletion feedback survives a card disappearing. Native confirmation keeps keyboard/focus handling simple at the cost of browser-controlled appearance.
 
-Deletion checks passed against the local API, PostgreSQL and S3Mock in Chrome: cancel, rejected request preserving the card, pending state, successful deletion, reload persistence, and desktop/mobile layouts without horizontal overflow. These checks used a temporary browser script; the committed frontend test suite follows separately.
+Deletion checks passed against the local API, PostgreSQL and S3Mock in Chrome: cancel, rejected request preserving the card, pending state, successful deletion, reload persistence, and desktop/mobile layouts without horizontal overflow. These checks used a temporary browser script; focused component regression tests are documented below.
+
+## Frontend regression tests and review fixes
+
+Run `pnpm --filter web test` (or `pnpm --filter web test:coverage`) for Jest + React Testing Library tests, using Next's SWC transform and a TypeScript config. Nine component interaction cases cover initial server data without a duplicate GET, cancelled deletion, pending-state coordination, ambiguous failure/recovery, confirmed deletion with failed refresh, invalid file selection, rejected upload, uncertain upload recovery, and confirmed upload with failed refresh. These are jsdom component tests with mocked HTTP responses, not real-backend E2E tests or whole-app coverage. Timeout expiry is not simulated.
+
+The page serializes uploads, deletions and their reconciliation. Upload is disabled during deletion/list refresh, and deletion is disabled during upload/list refresh. This prevents competing mutations from cancelling each other's follow-up query. It keeps this single-photo workflow predictable at the cost of parallel actions. Mutations are still not automatically retried; ambiguous outcomes require a refresh.
+
+Final review verification: API Jest **9 suites/119 cases**, web Jest/React Testing Library **1 suite/9 cases**, both apps' typecheck/lint/production builds, and offline frozen-lockfile validation passed. The selected frontend coverage report is generated by `test:coverage`; it does not measure the whole application.
+
+A temporary Playwright/installed-Chrome script against local PostgreSQL/S3Mock verified UTF-8 filename round-trip, original-byte identity, proportional resizing, UI upload → original view → cancelled/confirmed deletion → reload, coordinated pending controls, actual danger-button color and 1440/834/390/320 widths without horizontal overflow. The final run had no browser console errors/warnings or uncaught page exceptions. The tab icon uses an existing SVG, avoiding the earlier favicon request error. Only dedicated test records/objects were removed. This is runtime verification; no committed Playwright E2E suite, Safari/Firefox or full accessibility coverage is claimed.
