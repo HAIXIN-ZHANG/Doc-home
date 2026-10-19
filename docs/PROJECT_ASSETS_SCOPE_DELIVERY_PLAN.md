@@ -82,7 +82,17 @@ One page has empty/populated design states at desktop, tablet and mobile widths.
 | `tablet`: 48rem | Two columns; 32px side padding |
 | `desktop`: 64rem | Three columns; up to 1152px usable content |
 
-Previews: [desktop empty](images/photo-management-empty.png), [desktop populated](images/photo-management-desktop.png), [mobile populated](images/photo-management-mobile.png). These show illustrative content, not seeded photos or customer data. Example photo sources: [living room](https://images.unsplash.com/photo-1600210492486-724fe5c67fb0), [kitchen](https://images.unsplash.com/photo-1556912172-45b7abe8b7e1), [bedroom](https://images.unsplash.com/photo-1505693416388-ac5ce068fe85).
+### Screenshots
+
+Figma references and running-app screenshots are separate evidence. The app captures show local sample uploads, not photos created by the seed. List order is newest first, so it differs from the illustrative Figma order.
+
+| View | Figma design | Running app |
+| --- | --- | --- |
+| Desktop (1440px) | [Design](images/photo-management-desktop.png) | [Implementation](images/app-desktop.png) |
+| Tablet (834px) | [Design](images/photo-management-tablet.png) | [Implementation](images/app-tablet.png) |
+| Mobile (390px) | [Design](images/photo-management-mobile.png) | [Implementation](images/app-mobile.png) |
+
+[Empty-state design](images/photo-management-empty.png). Sample construction photos are illustrative project records, not customer evidence: [site overview — Dhaniel Hartono](https://unsplash.com/photos/PCDK46BCeh4), [site progress — shraga kopstein](https://unsplash.com/photos/7ypbeAK9t4E), [roof framing — Avel Chuklanov](https://unsplash.com/photos/IB0VA6VdqBw), via Unsplash. These are JPG examples; PDF/DOC support remains outside this slice.
 
 ## Verification boundaries
 

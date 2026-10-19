@@ -52,6 +52,7 @@ Web and API are separate applications in one pnpm workspace. PostgreSQL stores m
 - [Delivery scope and trade-offs](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md)
 - [Future product direction](docs/PRODUCT_BLUEPRINT.md)
 - [Figma and design previews](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#design-reference)
+- [Design and implementation screenshots: desktop, tablet and mobile](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#screenshots)
 
 ## HTTP API
 
