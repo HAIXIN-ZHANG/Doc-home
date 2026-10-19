@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Param, ParseUUIDPipe, Post, Res, UploadedFile, UseInterceptors,
+  Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, StreamableFile, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -7,6 +7,7 @@ import type { PhotoResponseDto, ProjectPhotosResponseDto } from './dto/project-p
 import { MAX_PHOTO_BYTES, PhotoUploadPipe } from './photo-upload.pipe.js';
 import type { PhotoUpload } from './photo-upload.pipe.js';
 import { PhotosService } from './photos.service.js';
+import { PhotoSizeQueryDto } from './dto/photo-size-query.dto.js';
 
 @Controller('projects/:projectId/photos')
 export class PhotosController {
@@ -17,6 +18,27 @@ export class PhotosController {
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
   ): Promise<ProjectPhotosResponseDto> {
     return this.photos.getProjectPhotos(projectId);
+  }
+
+  @Get(':photoId/content')
+  async getProjectPhoto(
+    @Param('projectId', new ParseUUIDPipe()) projectId: string,
+    @Param('photoId', new ParseUUIDPipe()) photoId: string,
+    @Query() size: PhotoSizeQueryDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const requestId: unknown = response.locals.requestId;
+    const content = await this.photos.getProjectPhoto(
+      projectId, photoId, size, typeof requestId === 'string' ? requestId : undefined,
+    );
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    // Avoid stale originals/variants after deletion; caching is a later decision.
+    response.setHeader('Cache-Control', 'no-store');
+    return new StreamableFile(content.buffer, {
+      type: content.mimeType,
+      disposition: 'inline',
+      length: content.buffer.length,
+    });
   }
 
   @Post()
