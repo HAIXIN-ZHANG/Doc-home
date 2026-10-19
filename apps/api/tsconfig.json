@@ -17,6 +17,18 @@
     "incremental": true,
     "skipLibCheck": true,
     "strict": true,
-    "types": ["node"]
-  }
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "jest.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage"
+  ]
 }

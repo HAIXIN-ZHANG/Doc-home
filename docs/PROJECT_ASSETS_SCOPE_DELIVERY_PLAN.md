@@ -6,7 +6,7 @@ Deliver one complete workflow for a project manager: open a seeded project's pho
 
 This is the selected slice of the broader **Related assets** Epic. The [product direction](PRODUCT_BLUEPRINT.md) explains possible expansion. This document defines current implementation tasks and acceptance criteria; it does not claim planned features are already delivered.
 
-**Current state:** 4 of four photo endpoints implemented. Frontend remains pending. Jest/TypeScript tests and consolidated verification are later review commits.
+**Current state:** All four photo endpoints and Jest/TypeScript unit tests are implemented. Frontend remains pending. Final verification walkthrough is the next review commit.
 
 **Time boundary:** the original exercise allows one day. Our implementation target for the reduced feature is roughly 4–6 additional focused hours, with integration uncertainty. Planning and framework time already spent must also be disclosed. Estimates are not actual time records.
 

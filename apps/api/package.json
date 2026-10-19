@@ -7,12 +7,16 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
-    "lint": "eslint src --max-warnings 0",
+    "lint": "eslint src test jest.config.ts --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "migration:run": "pnpm build && node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js",
     "migration:show": "pnpm build && node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:show -d dist/database/data-source.js",
     "migration:revert": "pnpm build && node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:revert -d dist/database/data-source.js",
-    "seed": "pnpm build && node --env-file-if-exists=.env dist/database/seed.js"
+    "seed": "pnpm build && node --env-file-if-exists=.env dist/database/seed.js",
+    "test": "pnpm test:unit",
+    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.ts --runInBand",
+    "test:watch": "pnpm test:unit --watch",
+    "test:coverage": "pnpm test:unit --coverage"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",
@@ -30,11 +34,17 @@
     "typeorm": "^0.3.31"
   },
   "devDependencies": {
+    "@jest/globals": "^30.5.2",
     "@nestjs/cli": "^12.0.0",
+    "@nestjs/testing": "^12.2.0",
     "@types/express": "^5.0.0",
     "@types/multer": "^2.3.0",
     "@types/node": "^24.0.0",
+    "aws-sdk-client-mock": "^4.1.0",
     "eslint": "^9.39.5",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "ts-node": "^10.9.2",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8"
   }

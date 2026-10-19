@@ -17,7 +17,7 @@ This repository is a time-boxed Sync Technologies take-home exercise. Read `docs
 - Run web and API locally on ports 3000 and 3001. Docker Compose runs PostgreSQL and Adobe S3Mock for local object storage. Keep file bytes in the configured bucket, metadata/object keys in PostgreSQL, and S3 access behind the API. Keep ESLint as the only lint tool; preserve database and object data and document reset behaviour.
 - Prefer a small, readable implementation over empty abstraction layers or extra infrastructure. Name things for their business role; write comments for non-obvious decisions and failure handling.
 - Validate incoming data on the backend. Account for failures between file storage and database changes. Keep seed data repeatable without overwriting user-added records.
-- When implementing the chosen slice, include focused tests for asset rules and file failure handling. Report only checks actually run.
+- Use TypeScript for application and test source. Use Jest for backend unit tests, with colocated `*.spec.ts` files and the existing TypeScript Jest config. The previous Node-runner cases have been migrated; do not add another test runner. React Testing Library and Playwright are the intended frontend component/browser tools when the UI is ready. Report only checks actually run.
 - Keep one working branch and meaningful commits. Preserve existing user changes; inspect the working tree before editing.
 
 ## Collaboration and delivery
