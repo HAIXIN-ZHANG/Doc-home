@@ -6,7 +6,7 @@ Deliver one complete workflow for a project manager: open a seeded project's pho
 
 This is the selected slice of the broader **Related assets** Epic. The [product direction](PRODUCT_BLUEPRINT.md) explains possible expansion. This document defines current implementation tasks and acceptance criteria; it does not claim planned features are already delivered.
 
-**Current state:** the pnpm workspace, Next.js/Panda frontend, NestJS API, PostgreSQL connection, validated environment configuration, S3 client/bucket health check and health route exist. Frontend/API run locally on ports 3000/3001; Docker runs PostgreSQL and S3Mock for local object storage. Lint, typecheck, build and local health/proxy checks passed during framework setup. Project/Photo entities, the initial migration, repeatable demo seed, shared database CLI options and feature modules now exist. The photo query endpoint, response types, UUID validation and basic request/error logs now exist. Upload and unit tests now exist. Original-image read and optional proportional w/h resizing are implemented. All four backend endpoints are implemented and verified; the web page now displays project context, empty/populated lists and original-image links; web upload/delete and frontend automated suites are **not implemented**; Jest/TypeScript unit tests now cover the four implemented photo handlers and related logic.
+**Current state:** the pnpm workspace, Next.js/Panda frontend, NestJS API, PostgreSQL connection, validated environment configuration, S3 client/bucket health check and health route exist. Frontend/API run locally on ports 3000/3001; Docker runs PostgreSQL and S3Mock for local object storage. Lint, typecheck, build and local health/proxy checks passed during framework setup. Project/Photo entities, the initial migration, repeatable demo seed, shared database CLI options and feature modules now exist. The photo query endpoint, response types, UUID validation and basic request/error logs now exist. Upload and unit tests now exist. Original-image read and optional proportional w/h resizing are implemented. All four backend endpoints are implemented and verified; the web page now displays project context, empty/populated lists and original-image links; web upload/delete are implemented; focused Jest/React Testing Library regressions exist, while a committed Playwright E2E suite and CI remain pending; Jest/TypeScript unit tests now cover the four implemented photo handlers and related logic.
 
 **Time boundary:** the original exercise allows one day. Our implementation target for the reduced feature is roughly 4–6 additional focused hours, with integration uncertainty. Planning and framework time already spent must also be disclosed. Estimates are not actual time records.
 
@@ -146,7 +146,7 @@ This order prioritises a correct list after a committed database deletion. A fai
 
 ## 8. Scope E — one frontend page
 
-**First increment implemented:** project name/address, count, empty/populated lists, bounded preview and original View, preview fallback, loading/not-found/error routes, and 1/2/3-column responsive layout. Initial server fetch seeds a page-scoped TanStack Query cache; hydration does not duplicate the fetch. Browser requests use the existing /api rewrite. The upload form is now implemented in the second increment below; Delete remains absent until its increment works. Shared API response decoding rejects malformed data rather than fabricating an empty list.
+**First increment implemented:** project name/address, count, empty/populated lists, bounded preview and original View, preview fallback, loading/not-found/error routes, and 1/2/3-column responsive layout. Initial server fetch seeds a page-scoped TanStack Query cache; hydration does not duplicate the fetch. Browser requests use the existing /api rewrite. The upload form and confirmed Delete are now implemented in subsequent increments. Shared API response decoding rejects malformed data rather than fabricating an empty list.
 
 **Verification:** web typecheck/lint/production build passed. One-off real-browser checks (Playwright + installed Chrome) exercised empty/populated projects, original popup, failed preview, missing-project navigation and API-offline error/retry recovery at 1440/834/390/320 widths. Temporary fixtures/processes were cleaned up. No new frontend unit/E2E suite was committed; controlled slow-loading, Safari/Firefox and full accessibility audits remain unverified.
 
@@ -215,7 +215,7 @@ The centered `page` size is 76rem (1216px) **including** side padding. At deskto
 | Text | `pageTitle`, `heading`, `body`, `small`, `label`; Inter Variable is self-hosted via Fontsource |
 | Button | One recipe and native React wrapper: `primary`, `secondary`, `danger`; minimum 44px height, hover, focus-visible and disabled states |
 
-The reusable Button defaults to `type="button"`; form submission must be explicit. The scaffold's existing health link demonstrates the shared recipe without adding an inactive business control. PhotoCard, upload feedback and the responsive photo grid now use the shared foundations; Delete remains feature work. No runtime UI component library was added. Figma buttons use an adapted Simple Design System base as a design asset only.
+The reusable Button defaults to `type="button"`; form submission must be explicit. The scaffold's existing health link demonstrates the shared recipe without adding an inactive business control. PhotoCard, upload feedback, confirmed deletion and the responsive photo grid use the shared foundations. No runtime UI component library was added. Figma buttons use an adapted Simple Design System base as a design asset only.
 
 **Planned grid usage:**
 
@@ -278,16 +278,16 @@ Set upload-validator status codes explicitly where defaults differ. The API and 
 | Repeated seed, migration and app restart | Disposable-data checks and manual walkthrough | Confirms reproducible startup and remaining-data persistence |
 | Upload/delete pending, error and narrow viewport | Manual browser walkthrough | Checks the one page as a user experiences it |
 
-Backend unit tests are now consolidated in Jest with TypeScript, before continuing the UI. The transitional Node-runner upload cases have been migrated and the old runner entry removed. Nine suites contain 118 passing cases for the three photo handlers, service rules, validation, SDK storage boundaries, errors/logging, environment and health. Specs use repository/storage substitutes and AWS command mocks without Docker or real HTTP listeners. Frontend component tests will use React Testing Library and browser flows Playwright when the UI exists. Record exact commands and actual results, including failed or unrun checks, for the final PR verification section; personal working notes stay outside the repository.
+Backend unit tests are now consolidated in Jest with TypeScript, before continuing the UI. The transitional Node-runner upload cases have been migrated and the old runner entry removed. Nine suites contain 119 passing cases for the four photo handlers, service rules, validation, SDK storage boundaries, errors/logging, environment and health. Specs use repository/storage substitutes and AWS command mocks without Docker or real HTTP listeners. Focused frontend component tests use Jest/React Testing Library; a committed Playwright E2E suite remains pending. Record exact commands and actual results, including failed or unrun checks, for the final PR verification section; personal working notes stay outside the repository.
 
-**Latest backend recheck:** the three implemented query/upload/read endpoints passed real local PostgreSQL/S3Mock checks again, including API-process restart with preserved records/bytes. Jest 9 suites/118 cases and API typecheck/lint/build passed. Current migration was applied. Dedicated check fixtures were removed, existing data and storage containers preserved. Deletion has now passed the complete upload/query/read/delete check. The selected backend loop is complete; frontend/full delivery remain incomplete. README now includes the manual startup/upload/query/read/restart walkthrough. This did not verify a fresh installation, storage-container restart, deletion or UI.
+**Latest backend recheck:** the three implemented query/upload/read endpoints passed real local PostgreSQL/S3Mock checks again, including API-process restart with preserved records/bytes. Jest 9 suites/118 cases and API typecheck/lint/build passed. Current migration was applied. Dedicated check fixtures were removed, existing data and storage containers preserved. Deletion has now passed the complete upload/query/read/delete check. The selected backend loop is complete; web display/upload/delete are now implemented, while full delivery checks remain incomplete. README now includes the manual startup/upload/query/read/restart walkthrough. That backend pass did not verify a fresh installation or storage-container restart; subsequent web/deletion checks are recorded separately.
 
 ### Completion checklist
 
 - [ ] Fresh setup instructions work with local web/API and Docker PostgreSQL/S3Mock.
 - [x] Migration and repeatable seed create the demo project without clearing added data.
-- [ ] One page supports upload, list, original-image view and delete.
-- [ ] JPG/PNG and size rules are enforced by the API; IDs and project association are checked.
+- [x] One page supports upload, list, original-image view and delete.
+- [x] JPG/PNG and size rules are enforced by the API; IDs and project association are checked.
 - [ ] App and pinned storage-service restart preserve remaining metadata and objects.
 - [ ] Expected errors and mutation ambiguity produce truthful UI feedback.
 - [ ] Focused tests and the manual walkthrough have recorded results.
@@ -338,4 +338,12 @@ At the end of the exercise, explain the next steps from the blueprint rather tha
 
 ## Frontend deletion progress
 
-The third frontend increment connects Delete with filename confirmation, pending state, shared-cache removal after 204, follow-up refresh and truthful error/uncertainty feedback. Cancel does not send a request; failed deletion keeps the card. Frontend automated tests follow in a separate commit, as requested. Test dependency/pnpm-lockfile edits already in Changes are not part of this feature commit.
+The third frontend increment connects Delete with filename confirmation, pending state, shared-cache removal after 204, follow-up refresh and truthful error/uncertainty feedback. Cancel does not send a request; failed deletion keeps the card. Focused frontend regressions follow in a separate test commit, with their configuration, dependencies and lockfile, as requested.
+
+## Whole-code review follow-up
+
+The multipart parser now decodes browser filenames as UTF-8, fixing corrupted non-ASCII labels without changing stored file bytes or schema. The frontend serializes writes and their follow-up query to avoid overlapping upload/delete reconciliation. Existing data is not rewritten automatically.
+
+Jest/React Testing Library configuration, test scripts, helpers, nine interaction regressions and the existing test dependencies/lockfile belong together in the frontend test commit. Coverage is focused on these behaviours; a repeatable committed Playwright E2E suite and CI still follow separately. The previous feature commits keep their original boundaries.
+
+The review also ensures all three small Button recipe variants are generated even when the shared wrapper forwards a runtime value; this fixes the previously missing danger styles. The tab icon reuses an existing SVG. Final checks passed: both apps typecheck/lint/build, backend 119 unit cases, frontend nine component cases, frozen lockfile consistency and a real local Chrome flow at four viewport widths. Original-image bytes and UTF-8 labels were checked against the API; browser danger color and absence of console/page errors were checked after the final build. Temporary screenshots/scripts remain outside the repository.
