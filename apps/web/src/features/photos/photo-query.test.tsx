@@ -17,10 +17,13 @@ function selectFile() {
 describe('Project photo interactions', () => {
   it('uses server initial data without a duplicate GET and cancels without a DELETE', async () => {
     jest.spyOn(window, 'confirm').mockReturnValue(false);
-    render(<ProjectPhotoQuery initialData={initialData} />);
+    const secondPhoto = { ...photo, id: '92772849-3041-4c81-9c8d-25ba55b409fd', originalName: 'second.png' };
+    render(<ProjectPhotoQuery initialData={{ ...initialData, photos: [photo, secondPhoto] }} />);
     await userEvent.click(deleteButton());
     expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining(photo.originalName));
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('img', { name: photo.originalName })).toHaveAttribute('loading', 'eager');
+    expect(screen.getByRole('img', { name: secondPhoto.originalName })).toHaveAttribute('loading', 'lazy');
     expect(deleteButton()).toBeEnabled();
   });
 
