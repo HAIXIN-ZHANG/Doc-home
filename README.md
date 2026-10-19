@@ -1,6 +1,6 @@
 # Doc-home
 
-Sync Technologies take-home exercise. Current status: framework foundation only; photo upload, list, view and delete are the next implementation steps.
+Sync Technologies take-home exercise. Current status: application/theme and database foundations are implemented. Photo upload, list, view and delete endpoints/UI are the next implementation steps.
 
 ## Structure
 
@@ -18,6 +18,8 @@ Use Node.js >=24, pnpm 10.24.0 and a running Docker engine. From the repository 
 pnpm install
 cp apps/api/.env.example apps/api/.env
 docker compose up -d --wait db object-storage
+pnpm --filter api migration:run
+pnpm --filter api seed
 pnpm dev
 ```
 
@@ -32,6 +34,41 @@ S3Mock is a local development/test emulator, not production object storage. It d
 The API validates environment variables on startup without printing their values. `PORT` defaults to 3001 and must be an integer from 1–65535. Database URL and S3 endpoint, region, bucket and credentials are required. This project accepts simple bucket names of 3–63 lowercase letters, digits or hyphens. If you change `S3_BUCKET`, update Compose's initial bucket name as well. If you change the API port, also set the web process's `API_INTERNAL_URL`, for example `API_INTERNAL_URL=http://localhost:3002 pnpm dev:web`.
 
 Storage supports arbitrary bytes, including images and PDFs. The selected business slice remains JPG/PNG photo management; PDF upload/download is deferred.
+
+## Database workflow
+
+The API uses **TypeORM**, not Prisma. Entities describe the application model, migrations version the SQL schema, and seed data supplies the repeatable demo project. SQL stores metadata and object keys; S3Mock stores file content.
+
+| Command from repository root | Purpose |
+| --- | --- |
+| `pnpm --filter api migration:show` | Show applied and pending migrations |
+| `pnpm --filter api migration:run` | Apply pending migrations in a transaction |
+| `pnpm --filter api seed` | Insert the demo project only if its stable ID is absent |
+| `pnpm --filter api migration:revert` | Undo the latest migration; the initial rollback deletes both business tables, so use disposable data only |
+
+Scripts compile TypeScript first, then use the compiled TypeORM CLI/data source. Node loads `apps/api/.env` without starting NestJS or requiring S3 configuration for these database commands. Nest and the CLI use the same database options and entity metadata; `synchronize` and automatic migration execution stay disabled. The health route checks connectivity, not migration/seed completeness.
+
+Demo project ID: `39f7c890-a5aa-4a74-8a3a-7fba28ac58b6`, with illustrative name/address matching Figma. The future page URL is `/projects/39f7c890-a5aa-4a74-8a3a-7fba28ac58b6/photos`; **the route is not implemented yet**. Re-running seed preserves edits and existing photos. Seed inserts no photo records because no actual photo objects are supplied. A fixture generator such as Faker is unnecessary for this single deterministic record.
+
+For a later schema change: update the Entity, add a new timestamped migration with reviewed `up`/`down` SQL, register it in `database-options.ts`, validate it on disposable data and apply it explicitly. Do not rewrite an already-shared/applied migration. A rollback can lose data; it is not a substitute for backups or a safe production rollout plan. This exercise does not implement a production migration pipeline.
+
+## Backend responsibilities
+
+Organise code by feature (`projects`, `photos`) and infrastructure (`database`, `storage`), rather than putting every controller or entity in a global folder.
+
+| Layer | Responsibility | Current state |
+| --- | --- | --- |
+| Module | Register dependencies and make intended providers available | Projects, Photos, Database and Storage modules exist |
+| Controller | Route, HTTP boundary and delegation | Existing `/health` delegates to `HealthService`; photo controller is next |
+| DTO / pipes | HTTP shapes and incoming validation; never persistence entities as public responses | Global validation exists; photo DTOs/pipes remain planned |
+| Service | Business rules, ownership checks and multi-step orchestration | Health/storage services exist; photo business service remains planned |
+| TypeORM Repository | Query and persist entities | Feature modules register repositories; no generic repository wrapper |
+| Entity / database | Stored fields, relations, nullability, uniqueness and constraints | Project and Photo entities/migration exist |
+| StorageService | Object-store access, separate from SQL and HTTP | Client and bucket readiness exist; object operations remain planned |
+
+The photo-to-project relation is required and uses `ON DELETE RESTRICT`: database cascades cannot delete S3 objects. A composite `(project_id, created_at, id)` index supports per-project stable ordering. Database constraints enforce positive sizes, nonblank labels/keys, unique storage keys and JPG/PNG metadata; request validation will still inspect actual file content. The 5 MiB request limit is an application policy, not a permanent SQL size constraint.
+
+Data-foundation checks passed on a disposable database: fresh/repeated migration, Entity/schema agreement, repeated seed without overwriting edits/photos, invalid-record constraints, restricted project deletion, connection reinitialization, and rollback/reapply. The temporary database was removed. The local development database also received the migration and demo seed. These checks do not cover photo HTTP endpoints or UI, and no checked-in feature test suite exists yet.
 
 ## Checks
 

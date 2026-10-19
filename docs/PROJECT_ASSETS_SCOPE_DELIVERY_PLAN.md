@@ -6,7 +6,7 @@ Deliver one complete workflow for a project manager: open a seeded project's pho
 
 This is the selected slice of the broader **Related assets** Epic. The [product direction](PRODUCT_BLUEPRINT.md) explains possible expansion. This document defines current implementation tasks and acceptance criteria; it does not claim planned features are already delivered.
 
-**Current state:** the pnpm workspace, Next.js/Panda frontend, NestJS API, PostgreSQL connection, validated environment configuration, S3 client/bucket health check and health route exist. Frontend/API run locally on ports 3000/3001; Docker runs PostgreSQL and S3Mock for local object storage. Lint, typecheck, build and local health/proxy checks passed during framework setup. The two business tables, migration, seed, photo endpoints, photo page and feature tests are **not implemented**.
+**Current state:** the pnpm workspace, Next.js/Panda frontend, NestJS API, PostgreSQL connection, validated environment configuration, S3 client/bucket health check and health route exist. Frontend/API run locally on ports 3000/3001; Docker runs PostgreSQL and S3Mock for local object storage. Lint, typecheck, build and local health/proxy checks passed during framework setup. Project/Photo entities, the initial migration, repeatable demo seed, shared database CLI options and feature modules now exist. The photo endpoints, response DTOs, photo page and checked-in feature tests are **not implemented**.
 
 **Time boundary:** the original exercise allows one day. Our implementation target for the reduced feature is roughly 4–6 additional focused hours, with integration uncertainty. Planning and framework time already spent must also be disclosed. Estimates are not actual time records.
 
@@ -50,10 +50,16 @@ The existing `/health` route checks PostgreSQL and bucket access; it is a framew
 | --- | --- | --- |
 | A1 Project entity | UUID `id`, `name`, `address`, `createdAt` | One known example project can be loaded |
 | A2 Photo entity | UUID `id`, foreign key `projectId`, `originalName`, unique `storageKey`, `mimeType`, `sizeBytes`, `createdAt` | Metadata belongs to an existing project; positive file size and required fields enforced |
-| A3 Migration | Create both tables, foreign key and index on `Photo.projectId`; retain an explicit rollback | A clean database can apply the migration; rollback is checked on disposable data |
+| A3 Migration | Create both tables, foreign key and composite index on `(projectId, createdAt, id)`; retain an explicit rollback | A clean database can apply the migration; rollback is checked on disposable data |
 | A4 Seed | Use a stable demo project ID and document its page URL; insert only when absent | Re-running seed does not delete photos or overwrite user changes |
 
 One Project has many Photos. `storageKey` locates bytes, for example `projects/<projectId>/photos/<generated-id>.jpg`; `originalName` is a display label, never a filesystem path. Store no signed URL or image binary in the table. TypeORM may maintain its own migration-history table in addition to these **two business tables**.
+
+**Implemented:** TypeORM powers both NestJS and the database scripts. Feature modules register repositories; Entity metadata and migration SQL agree in the disposable-database check. The photo-to-project foreign key restricts project deletion because SQL cascades cannot clean up S3 objects. Basic nonblank, positive-size, MIME and unique-key constraints are enforced in SQL. Address remains display text; duplicate original filenames are allowed. File bytes, signed URLs and guessed photo fixtures are not seeded.
+
+**Seed and schema evolution:** a handwritten, stable-ID fixture creates one demo project matching the design. No Prisma or Faker is added. `migration:run`, `migration:show`, `migration:revert` and `seed` scripts compile first and run against the configured database. Future schema changes get a new registered migration; do not edit shared/applied history. The initial `down` deletes tables, so rollback/reapply was checked only on disposable data. Production deployment and data-migration procedures remain future work.
+
+**Checks completed:** fresh/repeated migration; schema metadata agreement; repeated seed preserving an edited project and an existing photo record; foreign-key/unique/check constraints; connection reinitialization; rollback/reapply on an isolated temporary database, which was then removed. Development migration and seed also ran successfully. Photo file handling and HTTP validation remain unimplemented.
 
 No project mutation or standalone project-detail API is needed. The photo-list response supplies the small project summary used by the page.
 
@@ -87,7 +93,7 @@ Proposed response:
 
 The values are illustrative, not seeded or delivered data. `contentUrl` is generated from IDs for the same-origin web path and is not stored in SQL. Direct API clients can call the corresponding route without the web's `/api` prefix.
 
-Use `PhotoResponseDto` and a small list-response shape for this HTTP contract; Entity classes describe persistence. TypeScript does not validate incoming HTTP by itself. Use ID pipes and file validation, with no empty input DTO just to create another file. A documented response shape is sufficient; no generated SDK or OpenAPI setup is required.
+Use `PhotoResponseDto` and a small list-response shape for this HTTP contract; Entity classes describe persistence. TypeScript does not validate incoming HTTP by itself. Use ID pipes and file validation, with no empty input DTO just to create another file. A documented response shape is sufficient; no generated SDK or OpenAPI setup is required. For the initial four business endpoints, keep response DTOs in the API and matching response types/request helpers in one frontend photo API module. Do not import persistence entities or NestJS classes into the browser. Document the multipart field, response shapes and status codes in README as endpoints are implemented. These contract types and helpers are planned, not implemented yet.
 
 ## 6. Scope C — upload and file read
 
@@ -259,7 +265,7 @@ Add tests alongside each feature, not as an entirely separate final phase. Use o
 ### Completion checklist
 
 - [ ] Fresh setup instructions work with local web/API and Docker PostgreSQL/S3Mock.
-- [ ] Migration and repeatable seed create the demo project without clearing added data.
+- [x] Migration and repeatable seed create the demo project without clearing added data.
 - [ ] One page supports upload, list, original-image view and delete.
 - [ ] JPG/PNG and size rules are enforced by the API; IDs and project association are checked.
 - [ ] App and pinned storage-service restart preserve remaining metadata and objects.
@@ -301,6 +307,7 @@ The original exercise permits one representative subset, but the company's agree
 | --- | --- | --- |
 | Photos only, specific Photo model | Small and explainable end-to-end feature | Does not demonstrate mixed asset types; add links/documents and evolve a shared model when justified |
 | One seeded project, two business tables | Real association with minimal project workflow | More project flows are future work |
+| Explicit DTOs/types and a short HTTP contract; defer OpenAPI/Swagger and generated clients | Keep setup proportional to four business endpoints and focus on the working flow | Manual frontend/backend types can drift; update both sides and verify the contract with focused API checks. Revisit OpenAPI plus type generation when endpoints, consumers or parallel development increase |
 | Local S3 emulator with AWS SDK | Exercises object APIs without a cloud account; keeps bytes separate from SQL | Extra container/dependency; emulator does not prove AWS permissions or production durability |
 | Original images, no pagination | Avoids processing and query/UI scope | Larger images and lists cost more; add thumbnails/pagination as usage grows |
 | Web/API local, Docker PostgreSQL and S3Mock | Quick app iteration with reproducible storage services | Reviewer needs Node/pnpm and Docker; emulator version stays pinned |

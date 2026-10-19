@@ -8,7 +8,11 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "eslint src --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migration:run": "pnpm build && node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js",
+    "migration:show": "pnpm build && node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:show -d dist/database/data-source.js",
+    "migration:revert": "pnpm build && node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:revert -d dist/database/data-source.js",
+    "seed": "pnpm build && node --env-file-if-exists=.env dist/database/seed.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",
