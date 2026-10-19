@@ -20,7 +20,7 @@ This is the selected slice of the broader **Related assets** Epic. The [product 
 | One page with upload control and photo list | Separate upload/search/detail screens, filters and pagination |
 | Backend validation, clear UI states and failure cleanup | Bulk upload, thumbnail processing and automatic retries |
 | Local S3-compatible object storage and PostgreSQL persistence | Real AWS deployment, authentication and production infrastructure |
-| Focused tests, checked startup steps and review notes | Full coverage, required Figma artifact and CI/CD implementation |
+| Focused tests, checked startup steps and review notes | Full coverage, an interactive Figma prototype and CI/CD implementation |
 
 A photo-only implementation demonstrates file handling; it does **not** demonstrate external-link handling or all shared behaviours across asset types. Explain that limit in the PR, and use the blueprint to discuss how a second type could be introduced.
 
@@ -156,6 +156,75 @@ filename.jpg    kitchen.png
 
 Keep page/container, upload control and photo list understandable; do not create a component library. For a mutation timeout, tell the user the result could not be confirmed and refresh the list before inviting a retry. Do not automatically retry upload: the first attempt may already have saved successfully. If a successful mutation is followed by a failed refresh, distinguish “saved/deleted, list refresh failed” from “operation failed”.
 
+### Design reference — completed, implementation pending
+
+[Editable Figma file](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home-%C2%B7-Photo-management?node-id=3-5)
+
+One photo page has two designed states: empty and populated. Each is shown at Desktop (1440px), Tablet (834px) and Mobile (390px), for six frames total. The screens use editable text, SVG icons, component instances and bound variables. They are design references, not a wired prototype or implemented feature.
+
+| Viewport | Intended implementation |
+| --- | --- |
+| `mobile` / 0rem | One photo column; 20px page gutter; file controls and upload action stack |
+| `tablet` / 48rem (768px) | Two photo columns; 32px page gutter |
+| `desktop` / 64rem (1024px) | Three photo columns; centered usable content capped at 1152px |
+
+### Why design and frontend foundations belong together
+
+I wanted something concrete to discuss before writing the feature. The design shows how the user moves through the page; the technical scope explains the data, boundaries and trade-offs. Together they give PMs, designers and engineers a shared reference, including people who do not need to read the implementation.
+
+I also wanted to establish a few frontend rules early. If every component invents its own colors, padding and interaction states, the UI gradually becomes inconsistent. Shared tokens and a small Button component make those decisions reusable and easier to change together. My multimedia design background and AI-assisted Figma workflow made a lightweight design practical here.
+
+The cost is upfront time and an obligation to keep the design and code aligned. I kept this to one page, two states, three responsive examples and the styling needed for that scope. It is not a full design system or clickable prototype, and a design does not replace technical validation or user feedback.
+
+### Implemented frontend foundations
+
+`apps/web/panda.config.ts` explicitly loads the official base/panda presets, retains their spacing and radius scales, and replaces the default breakpoint names with `mobile`, `tablet` and `desktop`. The names describe layout thresholds, not device detection. Figma frame widths are review examples rather than the breakpoints themselves.
+
+The centered `page` size is 76rem (1216px) **including** side padding. At desktop size, 32px padding on each side leaves up to 1152px usable content; outer margins grow naturally on wider screens. Mobile uses 20px padding. Never hardcode the 144px gutter from the 1440px reference frame.
+
+| Foundation | Small shared set |
+| --- | --- |
+| Colors | `bg.canvas`, `bg.surface`, `bg.subtle`, `fg`, `fg.muted`, `fg.onAccent`, `border`, `action.primary`, `action.primaryHover`, `status.success`, `status.danger`, `status.dangerSoft`, `focus.ring` |
+| Palette | Preset neutral/status colors plus three custom brand values; semantic roles alias these values |
+| Spacing | Prefer preset `2`, `3`, `4`, `6`, `8` rather than arbitrary per-component gaps |
+| Radius | Preset `lg` (8px) for buttons, `xl` (12px) for panels/cards |
+| Text | `pageTitle`, `heading`, `body`, `small`, `label`; Inter Variable is self-hosted via Fontsource |
+| Button | One recipe and native React wrapper: `primary`, `secondary`, `danger`; minimum 44px height, hover, focus-visible and disabled states |
+
+The reusable Button defaults to `type="button"`; form submission must be explicit. The scaffold's existing health link demonstrates the shared recipe without adding an inactive business control. PhotoCard, upload feedback components and the responsive photo grid remain feature work. No runtime UI component library was added. Figma buttons use an adapted Simple Design System base as a design asset only.
+
+**Planned grid usage:**
+
+```tsx
+css({
+  display: 'grid',
+  gridTemplateColumns: {
+    mobile: 'minmax(0, 1fr)',
+    tablet: 'repeat(2, minmax(0, 1fr))',
+    desktop: 'repeat(3, minmax(0, 1fr))',
+  },
+  gap: { mobile: '4', tablet: '6' },
+})
+```
+
+References: [Panda presets](https://panda-css.com/docs/theming/presets), [responsive styling](https://panda-css.com/docs/styling/responsive-design), [recipes](https://panda-css.com/docs/recipes/overview).
+
+Choose one file, then upload. Keep the action disabled until selection is valid; use an inline error/status region. Confirm deletion by filename and keep failed deletions visible. Error, pending and timeout behaviours are annotated in Figma and specified above; they are not additional full-page designs. At 320px, allow filename/guidance wrapping and avoid fixed-width form controls.
+
+Project details, filenames and photo content are illustrative. Photo source assets: [living room](https://images.unsplash.com/photo-1600210492486-724fe5c67fb0), [kitchen](https://images.unsplash.com/photo-1556912172-45b7abe8b7e1), [bedroom](https://images.unsplash.com/photo-1505693416388-ac5ce068fe85). No actual customer data is used.
+
+**Desktop — empty**
+
+![Photo page before the first upload](images/photo-management-empty.png)
+
+**Desktop — populated**
+
+![Photo page showing three illustrative images](images/photo-management-desktop.png)
+
+**Mobile — populated**
+
+![Single-column mobile layout with stacked upload controls](images/photo-management-mobile.png)
+
 ## 9. Scope F — errors, tests and review evidence
 
 Use Nest's existing exception handling for ordinary failures. Catch exceptions when recovery, file compensation or a clear domain response is needed. Log useful internal causes; do not expose SQL errors, credentials or local paths in responses. Avoid a custom error framework.
@@ -208,18 +277,19 @@ Add tests alongside each feature, not as an entirely separate final phase. Use o
 
 These are staging boundaries for a transparent local history cleanup authorised by the user, not a claim that the project was originally created in that order. The original history is preserved on a backup branch. Framework checks were run before regrouping; final source contents are compared against the saved working tree. Remote pushes remain user-controlled.
 
-**After those three commits**, advance one small implemented result at a time:
+**After those three commits**, add the lightweight design reference, then advance one small implemented result at a time:
 
 | Sequence | Work scopes | Outcome to commit |
 | --- | --- | --- |
-| 4 | A | Project/Photo schema, migration and repeatable seed |
-| 5 | B | Project photo-list API and response contract |
-| 6 | C upload | Validated upload, metadata and compensation |
-| 7 | C read | Original-image content route and association checks |
-| 8 | E load/view | One working query/list/preview page |
-| 9 | E upload | Upload control and refresh/error behaviour |
-| 10 | D + E delete | Delete API and UI with failure handling |
-| 11 | F | Final cross-flow verification, remaining fixes and delivery-document consolidation |
+| 4 | E design + theme | Figma reference/previews, shared Panda theme, named breakpoints and reusable Button; no photo feature implementation |
+| 5 | A | Project/Photo schema, migration and repeatable seed |
+| 6 | B | Project photo-list API and response contract |
+| 7 | C upload | Validated upload, metadata and compensation |
+| 8 | C read | Original-image content route and association checks |
+| 9 | E load/view | One working query/list/preview page |
+| 10 | E upload | Upload control and refresh/error behaviour |
+| 11 | D + E delete | Delete API and UI with failure handling |
+| 12 | F | Final cross-flow verification, remaining fixes and delivery-document consolidation |
 
 Each functional commit includes its related tests and a concise commit description explaining the change and reason. Keep personal preparation notes outside the repository; summarise trade-offs, checks and next steps in the final PR. The list may be adjusted for genuinely small or tightly coupled changes; it is not a target commit count.
 
@@ -234,7 +304,7 @@ The original exercise permits one representative subset, but the company's agree
 | Local S3 emulator with AWS SDK | Exercises object APIs without a cloud account; keeps bytes separate from SQL | Extra container/dependency; emulator does not prove AWS permissions or production durability |
 | Original images, no pagination | Avoids processing and query/UI scope | Larger images and lists cost more; add thumbnails/pagination as usage grows |
 | Web/API local, Docker PostgreSQL and S3Mock | Quick app iteration with reproducible storage services | Reviewer needs Node/pnpm and Docker; emulator version stays pinned |
-| No auth, CI or Figma deliverable | Protects the small time box | Access control and deployment quality work precede real customer use |
+| No auth or CI implementation | Protects the small time box | Access control and deployment quality work precede real customer use |
 | Best-effort file cleanup | Makes partial failures explicit without a job system | Orphans remain possible; add reconciliation when needed |
 
 At the end of the exercise, explain the next steps from the blueprint rather than implying they were delivered. Do not expand this scope to make the code look more elaborate.
