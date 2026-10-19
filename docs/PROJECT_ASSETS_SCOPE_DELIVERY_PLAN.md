@@ -6,7 +6,7 @@ Deliver one complete workflow for a project manager: open a seeded project's pho
 
 This is the selected slice of the broader **Related assets** Epic. The [product direction](PRODUCT_BLUEPRINT.md) explains possible expansion. This document defines current implementation tasks and acceptance criteria; it does not claim planned features are already delivered.
 
-**Current state:** All four photo endpoints and Jest/TypeScript unit tests are implemented. Frontend remains pending. Final verification walkthrough is the next review commit.
+**Current state:** the pnpm workspace, Next.js/Panda frontend, NestJS API, PostgreSQL connection, validated environment configuration, S3 client/bucket health check and health route exist. Frontend/API run locally on ports 3000/3001; Docker runs PostgreSQL and S3Mock for local object storage. Lint, typecheck, build and local health/proxy checks passed during framework setup. Project/Photo entities, the initial migration, repeatable demo seed, shared database CLI options and feature modules now exist. The photo query endpoint, response types, UUID validation and basic request/error logs now exist. Upload and unit tests now exist. Original-image read and optional proportional w/h resizing are implemented. All four backend endpoints are implemented and verified; the photo page is **not implemented**; Jest/TypeScript unit tests now cover the four implemented photo handlers and related logic.
 
 **Time boundary:** the original exercise allows one day. Our implementation target for the reduced feature is roughly 4–6 additional focused hours, with integration uncertainty. Planning and framework time already spent must also be disclosed. Estimates are not actual time records.
 
@@ -18,7 +18,7 @@ This is the selected slice of the broader **Related assets** Epic. The [product 
 | Two business tables: Project and Photo | A generic asset hierarchy and unused tables |
 | Single JPG/PNG upload, list, original-image view and delete | Links, PDF/documents, videos and custom fields |
 | One page with upload control and photo list | Separate upload/search/detail screens, filters and pagination |
-| Backend validation, clear UI states and failure cleanup | Bulk upload, thumbnail processing and automatic retries |
+| Backend validation, clear UI states and failure cleanup | Bulk upload, pre-generated thumbnails and automatic retries |
 | Local S3-compatible object storage and PostgreSQL persistence | Real AWS deployment, authentication and production infrastructure |
 | Focused tests, checked startup steps and review notes | Full coverage, an interactive Figma prototype and CI/CD implementation |
 
@@ -59,7 +59,7 @@ One Project has many Photos. `storageKey` locates bytes, for example `projects/<
 
 **Seed and schema evolution:** a handwritten, stable-ID fixture creates one demo project matching the design. No Prisma or Faker is added. `migration:run`, `migration:show`, `migration:revert` and `seed` scripts compile first and run against the configured database. Future schema changes get a new registered migration; do not edit shared/applied history. The initial `down` deletes tables, so rollback/reapply was checked only on disposable data. Production deployment and data-migration procedures remain future work.
 
-**Checks completed:** fresh/repeated migration; schema metadata agreement; repeated seed preserving an edited project and an existing photo record; foreign-key/unique/check constraints; connection reinitialization; rollback/reapply on an isolated temporary database, which was then removed. Development migration and seed also ran successfully. Photo file handling and HTTP validation remain unimplemented.
+**Checks completed:** fresh/repeated migration; schema metadata agreement; repeated seed preserving an edited project and an existing photo record; foreign-key/unique/check constraints; connection reinitialization; rollback/reapply on an isolated temporary database, which was then removed. Development migration and seed also ran successfully. At that data-foundation stage, photo HTTP handling had not been implemented. Query/upload verification is recorded below.
 
 No project mutation or standalone project-detail API is needed. The photo-list response supplies the small project summary used by the page.
 
@@ -73,7 +73,7 @@ No project mutation or standalone project-detail API is needed. The photo-list r
 | B2 Query | Read only photos for that project, newest first with ID as a stable tie-breaker | No photos returns an empty list; query failure is an error, not an empty list |
 | B3 Response mapping | Return a project summary and photo response objects; omit internal storage paths | Web can identify the project and render the list from one request |
 
-Proposed response:
+Implemented query response shape (illustrative photo):
 
 ```json
 {
@@ -84,18 +84,21 @@ Proposed response:
       "originalName": "kitchen.jpg",
       "mimeType": "image/jpeg",
       "sizeBytes": 245120,
-      "contentUrl": "/api/projects/<projectId>/photos/<photoId>/content",
       "createdAt": "2026-10-19T10:00:00.000Z"
     }
   ]
 }
 ```
 
-The values are illustrative, not seeded or delivered data. `contentUrl` is generated from IDs for the same-origin web path and is not stored in SQL. Direct API clients can call the corresponding route without the web's `/api` prefix.
+The values are illustrative, not seeded photo data. No content URL is returned yet. When the read route is implemented, the frontend can construct its URL from the project/photo IDs rather than coupling API responses to the web proxy prefix.
 
-Use `PhotoResponseDto` and a small list-response shape for this HTTP contract; Entity classes describe persistence. TypeScript does not validate incoming HTTP by itself. Use ID pipes and file validation, with no empty input DTO just to create another file. A documented response shape is sufficient; no generated SDK or OpenAPI setup is required. For the initial four business endpoints, keep response DTOs in the API and matching response types/request helpers in one frontend photo API module. Do not import persistence entities or NestJS classes into the browser. Document the multipart field, response shapes and status codes in README as endpoints are implemented. These contract types and helpers are planned, not implemented yet.
+Use `PhotoResponseDto` and a small list-response shape for this HTTP contract; Entity classes describe persistence. TypeScript does not validate incoming HTTP by itself. Use ID pipes and file validation, with no empty input DTO just to create another file. A documented response shape is sufficient; no generated SDK or OpenAPI setup is required. For the initial four business endpoints, keep response DTOs in the API and matching response types/request helpers in one frontend photo API module. Do not import persistence entities or NestJS classes into the browser. Document the multipart field, response shapes and status codes in README as endpoints are implemented. API response types are implemented; frontend types/helpers remain planned.
+
+**Query verification completed:** actual HTTP 200 (seeded, empty and populated), 400, 404; project isolation; descending createdAt/ID order; public fields/ISO timestamps; request-ID headers and JSON completion logs. Dedicated temporary records were removed. An isolated HTTP harness using the actual service/controller/filter and failing repository substitutes checked sanitized 500 responses for both query steps; no live database outage was induced. The check script remains outside the repository, and the frontend proxy/UI were not checked in this pass.
 
 ## 6. Scope C — upload and file read
+
+**Upload, file read and optional proportional resizing are implemented.**
 
 ### Upload
 
@@ -108,16 +111,21 @@ Use `PhotoResponseDto` and a small list-response shape for this HTTP contract; E
 | C3 Record creation | Save metadata after the file is written | New record appears in the project's list |
 | C4 Failure compensation | If record creation fails, attempt to delete the written file; log cleanup failure without hiding the original error | Client receives an error; tests show cleanup was attempted |
 
-**Proposed policy for this implementation:** one JPEG/PNG up to **5 MiB** per request. This is our small-exercise choice, not a limit specified by the company. Validate content signatures using the chosen Nest file validator; this is not full image decoding, malware scanning or a production media pipeline.
+**Implemented upload policy:** one JPEG/PNG up to **5 MiB** per request. This is our small-exercise choice, not a limit specified by the company. Validate content signatures using the chosen Nest file validator; this is not full image decoding, malware scanning or a production media pipeline.
+
+**Upload checks completed:** the original 12 Node cases were migrated into Jest/TypeScript; unit cases cover signature/size/name validation, write order, missing project, put/save failures and cleanup failure preserving the original error. Real local HTTP checks verified upload/list and S3 object bytes/type plus rejection statuses. Temporary records/objects were removed; no live failure was induced. Files are buffered under the parser size cap; original filenames do not choose object keys. Compensation is best effort, and uncertain remote outcomes remain a limitation.
 
 ### Read original image
 
 **Endpoint:** `GET /projects/:projectId/photos/:photoId/content`.
 
 - Validate IDs and find the photo by **both** project and photo ID.
-- Fetch only its server-generated object key from the configured bucket, return bytes with the validated `Content-Type`, and handle stream failures without crashing the process.
+- Fetch its server-generated key from the configured bucket. Buffer at most 5 MiB before responding so storage-stream errors can return a proper HTTP error. Return the recorded JPEG/PNG Content-Type, length, inline disposition, nosniff and no-store headers. This bounded-buffer design is not a large-file streaming architecture.
 - Wrong association, missing record or missing bytes returns 404; log a record/file mismatch for investigation.
-- Use the original image for both grid preview and a new-tab view. No thumbnail generator or separate detail page.
+- With no `w`/`h`, return the original bytes. With one parameter, scale proportionally to that maximum dimension; with both, fit inside the requested box. Preserve aspect ratio, do not crop/stretch/enlarge. For a 1200 × 800 source, `w=300` gives 300 × 200, `h=300` gives 450 × 300, and `w=300&h=300` gives 300 × 200.
+- Parameters are optional positive decimal integers from 1–2048; invalid/repeated/unknown values return 400. Both output axes are capped at 2048 even when one is omitted. Sharp 0.35.5 applies EXIF orientation for resized output, limits source decoding to 40 million pixels and sets a 5-second processing timeout. Original bytes bypass transformation; resized output retains JPEG/PNG format, with default metadata removal/first-frame processing. Read-time resizing is a user-added scope increment. README examples and TypeScript comments explain the rules. No pre-generated variants, transformation cache or separate detail page. Only the original is stored.
+
+**Read checks completed:** real HTTP original byte identity, PNG/JPEG, width/height/box fitting, no enlargement, 2048 global cap, EXIF orientation, headers, invalid-query 400, association/missing-record/missing-object 404, corrupt-image resize 500 and corresponding logs. Temporary fixtures were cleaned up. Pixel/time guard stress tests were not run. That endpoint commit did not add unit cases; the subsequent Jest/TypeScript testing commit now covers the three implemented endpoints together.
 
 **Boundary:** the database and object storage do not share a transaction. Compensation is best effort. A process crash can still leave an orphan file; background reconciliation is deferred and must be named as a limitation.
 
@@ -131,6 +139,8 @@ Use `PhotoResponseDto` and a small list-response shape for this HTTP contract; E
 | D2 Delete record | Delete the matched database record before removing bytes | Database failure leaves the file in place and returns an error |
 | D3 File cleanup | Delete its stored object; an already-missing object counts as cleaned | Normal deletion removes both record and bytes |
 | D4 Partial failure | If database deletion succeeded but file cleanup fails, log the key/error and return 204 | UI reflects removal; the known orphan-file risk is documented |
+
+**Implemented and checked:** conditional deletion scopes both IDs; 204 is empty; repeated/wrong-project requests return 404; rows and objects are removed normally. Seven new Jest cases cover handler delegation, ordering, lookup/delete failures, a concurrent missing row and logged cleanup failure. The total backend suite is 118 cases.
 
 This order prioritises a correct list after a committed database deletion. A failed cleanup needs a future reconciliation/retry job; it must not be described as guaranteed physical deletion. Repeating deletion after the record is gone can return 404. Do not build a generic retry or event system for this exercise.
 
@@ -233,7 +243,7 @@ Project details, filenames and photo content are illustrative. Photo source asse
 
 ## 9. Scope F — errors, tests and review evidence
 
-Use Nest's existing exception handling for ordinary failures. Catch exceptions when recovery, file compensation or a clear domain response is needed. Log useful internal causes; do not expose SQL errors, credentials or local paths in responses. Avoid a custom error framework.
+Use Nest HTTP exceptions for ordinary failures. A small global filter adds requestId and sanitizes unexpected failures; request middleware records status/duration with the same generated ID. Internal diagnostics keep error types and stack locations, omitting database error messages that can contain SQL parameters. Catch in business services only for recovery, file compensation or domain translation. Do not expose SQL errors, credentials or local paths in responses. Logs go to the console; external monitoring, distributed tracing, aborted-request tracking and durable log collection are deferred.
 
 | Failure | Proposed response / UI behaviour |
 | --- | --- |
@@ -260,7 +270,9 @@ Set upload-validator status codes explicitly where defaults differ. The API and 
 | Repeated seed, migration and app restart | Disposable-data checks and manual walkthrough | Confirms reproducible startup and remaining-data persistence |
 | Upload/delete pending, error and narrow viewport | Manual browser walkthrough | Checks the one page as a user experiences it |
 
-Add tests alongside each feature, not as an entirely separate final phase. Use one API test runner selected when tests are introduced; do not scaffold multiple runners or a required browser-automation suite now. Record exact commands and actual results, including failed or unrun checks, for the final PR verification section; personal working notes stay outside the repository.
+Backend unit tests are now consolidated in Jest with TypeScript, before continuing the UI. The transitional Node-runner upload cases have been migrated and the old runner entry removed. Nine suites contain 118 passing cases for the three photo handlers, service rules, validation, SDK storage boundaries, errors/logging, environment and health. Specs use repository/storage substitutes and AWS command mocks without Docker or real HTTP listeners. Frontend component tests will use React Testing Library and browser flows Playwright when the UI exists. Record exact commands and actual results, including failed or unrun checks, for the final PR verification section; personal working notes stay outside the repository.
+
+**Latest backend recheck:** the three implemented query/upload/read endpoints passed real local PostgreSQL/S3Mock checks again, including API-process restart with preserved records/bytes. Jest 9 suites/118 cases and API typecheck/lint/build passed. Current migration was applied. Dedicated check fixtures were removed, existing data and storage containers preserved. Deletion has now passed the complete upload/query/read/delete check. The selected backend loop is complete; frontend/full delivery remain incomplete. README now includes the manual startup/upload/query/read/restart walkthrough. This did not verify a fresh installation, storage-container restart, deletion or UI.
 
 ### Completion checklist
 
@@ -297,7 +309,7 @@ These are staging boundaries for a transparent local history cleanup authorised 
 | 11 | D + E delete | Delete API and UI with failure handling |
 | 12 | F | Final cross-flow verification, remaining fixes and delivery-document consolidation |
 
-Each functional commit includes its related tests and a concise commit description explaining the change and reason. Keep personal preparation notes outside the repository; summarise trade-offs, checks and next steps in the final PR. The list may be adjusted for genuinely small or tightly coupled changes; it is not a target commit count.
+Functional commits include concise descriptions explaining the change and reason. The user chose a separate Jest/TypeScript testing commit after query/upload/read; it is now implemented. Continue using Jest and TypeScript for subsequent backend unit cases. Keep personal preparation notes outside the repository; summarise trade-offs, checks and next steps in the final PR. The list may be adjusted for genuinely small or tightly coupled changes; it is not a target commit count.
 
 The original exercise permits one representative subset, but the company's agreement to this **photo-only** scope and the exact deadline still need confirmation. Draft a short scope/deadline message for the user to review if needed; do not contact the company without explicit authorisation. Submit one PR from the working branch to `main`, with the supplied reviewer usernames, when ready.
 
@@ -309,18 +321,9 @@ The original exercise permits one representative subset, but the company's agree
 | One seeded project, two business tables | Real association with minimal project workflow | More project flows are future work |
 | Explicit DTOs/types and a short HTTP contract; defer OpenAPI/Swagger and generated clients | Keep setup proportional to four business endpoints and focus on the working flow | Manual frontend/backend types can drift; update both sides and verify the contract with focused API checks. Revisit OpenAPI plus type generation when endpoints, consumers or parallel development increase |
 | Local S3 emulator with AWS SDK | Exercises object APIs without a cloud account; keeps bytes separate from SQL | Extra container/dependency; emulator does not prove AWS permissions or production durability |
-| Original images, no pagination | Avoids processing and query/UI scope | Larger images and lists cost more; add thumbnails/pagination as usage grows |
+| Store originals; optional read-time resizing; no pagination | No stored variant lifecycle; caller can request bounded dimensions | Per-request CPU/latency; validate decoding/output limits, and add caching/pagination as usage grows |
 | Web/API local, Docker PostgreSQL and S3Mock | Quick app iteration with reproducible storage services | Reviewer needs Node/pnpm and Docker; emulator version stays pinned |
 | No auth or CI implementation | Protects the small time box | Access control and deployment quality work precede real customer use |
 | Best-effort file cleanup | Makes partial failures explicit without a job system | Orphans remain possible; add reconciliation when needed |
 
 At the end of the exercise, explain the next steps from the blueprint rather than implying they were delivered. Do not expand this scope to make the code look more elaborate.
-
-## Review progress for this commit
-
-- Implemented: GET /projects/:projectId/photos (200, malformed UUID 400, missing project 404), explicit public fields, request IDs and safe error/access logs.
-- Implemented: POST /projects/:projectId/photos, multipart field file, one JPEG/PNG up to 5 MiB, detected content type, UUID keys and compensation after failed metadata save; 201 on success.
-- Implemented: GET /projects/:projectId/photos/:photoId/content. No parameters returns original bytes; optional w/h from 1–2048 resize proportionally inside the bounds without enlargement. For 1200 x 800, w=300 -> 300 x 200, h=300 -> 450 x 300, both 300 -> 300 x 200. Store originals only; no transformation cache.
-- Implemented: DELETE /projects/:projectId/photos/:photoId, 204 empty body. Delete SQL before best-effort object cleanup; missing/wrong-project photo is 404. Cleanup failures log orphan risk, without reversing a committed record deletion.
-
-Other scopes above remain a plan unless explicitly marked implemented here. Jest and final verification evidence are consolidated in later review commits.
