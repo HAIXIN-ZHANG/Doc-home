@@ -33,7 +33,7 @@ Docker runs only storage services. Use `pnpm dev:web` or `pnpm dev:api` to run o
 ### Quick walkthrough
 
 1. Open the app and check the project name/address and photo count.
-2. Choose a real JPG/PNG up to 5 MiB and click **Upload photo**.
+2. Choose a real JPG/PNG up to 5 MiB (a screenshot works) and click **Upload photo**. HEIC, WebP, GIF and PDF are not supported.
 3. Check the preview and use **View** to open the original in a new tab.
 4. Reload to check persistence, then **Delete** and confirm the filename.
 5. Try an invalid file; check that the error is visible and the existing list remains.
@@ -68,7 +68,7 @@ Demo project ID: `39f7c890-a5aa-4a74-8a3a-7fba28ac58b6`.
 
 **Response contract:** list returns `{ project: { id, name, address }, photos: Photo[] }`. Upload returns one `Photo` with `id`, `originalName`, `mimeType`, `sizeBytes` and an ISO `createdAt`. Internal storage keys are omitted.
 
-**Upload:** exactly one multipart field named `file`, no additional fields. Accepts nonempty JPEG/PNG content up to and including **5 MiB**. The API detects the content type rather than trusting the filename or declared MIME. UTF-8 filenames are preserved; names must contain 1–255 characters after trimming, without control characters.
+**Upload:** exactly one multipart field named `file`, no additional fields. Accepts nonempty JPEG/PNG content up to and including **5 MiB**. The picker and browser validation give early feedback; the API detects the content type rather than trusting the filename or declared MIME. UTF-8 filenames are preserved; names must contain 1–255 characters after trimming, without control characters.
 
 ```bash
 curl -F 'file=@/absolute/path/to/photo.png' \
@@ -119,9 +119,10 @@ Unit/component tests need no Docker or `.env`. Optional coverage commands are `p
 | API Jest | 9 suites / 119 cases: handlers, service rules, validation, storage boundaries, errors/logging, configuration and health |
 | Web Jest + React Testing Library | 1 suite / 9 cases: mutation coordination, validation and failure/recovery states |
 | Typecheck, lint and production builds | Both applications passed locally |
-| Real local API/browser checks | PostgreSQL/S3Mock upload, read/resize, delete, persistence after API restart; Chrome interactions and 1440/834/390/320 layouts |
+| Clean local setup | Frozen install from cached packages, new database migration/seed and `pnpm dev` passed in an isolated checkout/storage project |
+| Real local API/browser checks | JPG/PNG upload, format/size rejection, read/resize, delete; persistence across app and storage-container recreation; Chrome at 1440/834/390/320 widths |
 
-Runtime/browser checks used temporary scripts, not a committed integration/E2E suite. Fresh-clone setup, full storage-container persistence of the final feature, Safari/Firefox, full accessibility and high concurrency remain unverified.
+Runtime/browser checks used temporary scripts and isolated storage ports, not a committed integration/E2E suite. Repeated seed and container recreation preserved photo records and identical original bytes. Safari/Firefox, full accessibility, high concurrency and real AWS behaviour remain unverified.
 
 [GitHub Actions](.github/workflows/ci.yml) runs typecheck, lint, Jest and build on branch pushes and PRs into `main`. App-only changes select that app; public photo DTOs, shared/root configuration and lockfile changes select both. Docs-only changes skip application jobs. New branches, manual runs and unavailable comparison history check both.
 
