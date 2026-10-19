@@ -18,7 +18,7 @@ Give project managers a shared workspace to understand a project and find the re
 | Collaboration | Comments, assignments, notifications and activity history | Future product proposal |
 | Discovery and reporting | Search, filtering, saved views, exports and dashboards | Future product proposal |
 | Integrations | Import/export, external APIs and webhooks | Future product proposal |
-| Trust and operations | Authentication, project permissions, audit, backups, CI/CD and monitoring | Future product work; basic local checks are included now |
+| Trust and operations | Authentication, project permissions, audit, backups, CI/CD and monitoring | Future product work; local checks and basic CI are included now |
 
 ## Possible long-term architecture
 
@@ -35,7 +35,7 @@ flowchart LR
     CI -. later .-> CD[Deployment and rollback]
 ```
 
-Start with one modular API. Add separate workers, search infrastructure or more services when a validated product need warrants them. The current foundation uses local S3Mock with AWS SDK v3; file features are not implemented yet. A production deployment would use private object storage such as S3 while business records keep their stable storage keys.
+Start with one modular API. Add separate workers, search infrastructure or more services when a validated product need warrants them. The delivered photo slice uses local S3Mock with AWS SDK v3; other asset types remain future work. A production deployment would use private object storage such as S3 while business records keep their stable storage keys.
 
 ## Possible next increments after this submission
 
@@ -44,6 +44,6 @@ Start with one modular API. Add separate workers, search infrastructure or more 
 3. Add video playback and appropriate thumbnail generation when size, format and preview needs are clear.
 4. Expand project navigation and introduce identity, project permissions and protected file access before real customer use.
 5. Replace the local S3 emulator with provisioned private object storage; verify IAM and real-provider behaviour, then introduce versioning, cleanup jobs, backups and restore procedures as required.
-6. Add CI quality gates, controlled deployments, migration handling, rollback and monitoring. Collaboration, reporting and integrations follow validated demand.
+6. Extend the basic CI with integration checks, controlled deployments, migration handling, rollback and monitoring. Collaboration, reporting and integrations follow validated demand.
 
 These steps describe an evolution path, not a delivery schedule. No cloud provider, infrastructure tool, user-role model or performance target is assumed to be a company requirement.
