@@ -1,0 +1,27 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "panda codegen && next dev",
+    "build": "panda codegen && next build",
+    "start": "next start",
+    "lint": "eslint --max-warnings 0",
+    "typecheck": "panda codegen && tsc --noEmit",
+    "prepare": "panda codegen"
+  },
+  "dependencies": {
+    "next": "16.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@pandacss/dev": "^2.2.0",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.2",
+    "typescript": "^5"
+  }
+}
