@@ -44,3 +44,11 @@ pnpm build
 Framework checks completed with Node 24.14.1: lint (zero warnings), typecheck and both production builds; homepage and direct/proxied readiness returned 200. AWS SDK put/get/delete worked against S3Mock, and a probe object survived a restart of the pinned container. Invalid ports, URL protocols and missing storage credentials were rejected. These are foundation checks, not photo-feature test coverage.
 
 The [photo scope plan](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) defines the current tasks and acceptance criteria. The [product direction](docs/PRODUCT_BLUEPRINT.md) describes future possibilities. Final decisions and verification evidence will be consolidated in the README and PR after implementation.
+
+## Design reference
+
+[Figma — editable photo management design](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home-%C2%B7-Photo-management?node-id=3-5)
+
+The [responsive photo-page design](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#design-reference--completed-implementation-pending) includes the editable Figma link, two UI states, three viewport layouts and exported previews. The business UI is not implemented yet. The same change includes the Panda presets, semantic color tokens, shared text styles, self-hosted Inter font and reusable Button. Breakpoints are named `mobile` (0rem), `tablet` (48rem) and `desktop` (64rem). Photo components and the grid remain feature work.
+
+Theme foundation checks passed: lint, typecheck and both production builds. The production homepage, generated CSS and self-hosted font were served successfully. Responsive photo-page behaviour remains to be implemented and verified.
