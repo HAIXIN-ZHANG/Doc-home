@@ -34,6 +34,10 @@ describe('PhotoUploadPipe', () => {
   it.each(['  ', 'a'.repeat(256), 'bad\nname.png', 'bad\x7fname.png'])('rejects an invalid filename: %p', async (originalname) => {
     await expect(pipe.transform(uploadFile({ originalname }))).rejects.toMatchObject({ status: 400 });
   });
+  it('preserves an already-decoded Unicode filename', async () => {
+    await expect(pipe.transform(uploadFile({ originalname: '厨房-é-🏠.png' })))
+      .resolves.toMatchObject({ originalName: '厨房-é-🏠.png' });
+  });
   it('trims the display filename', async () => {
     await expect(pipe.transform(uploadFile({ originalname: ' photo.png ' })))
       .resolves.toMatchObject({ originalName: 'photo.png' });
