@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { Button } from '@/components/ui/button';
 import { css } from '../../../styled-system/css';
 import { PhotoPage } from './photo-page';
+import { PhotoUpload } from './photo-upload';
 import { projectPhotosPath } from './photo-urls';
 import { parseProjectPhotos } from './photo-types';
 import type { ProjectPhotos } from './photo-types';
@@ -30,6 +31,9 @@ function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
 
   return (
     <PhotoPage {...query.data}>
+      <PhotoUpload projectId={projectId} refreshPhotos={async () => {
+        await query.refetch({ throwOnError: true });
+      }} />
       {query.isError ? (
         <div role="alert" className={css({ color: 'status.danger', display: 'flex', flexWrap: 'wrap', gap: '3', alignItems: 'center' })}>
           <p>The latest photos could not be loaded. The list below may be out of date.</p>
