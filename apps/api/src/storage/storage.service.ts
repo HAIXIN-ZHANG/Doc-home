@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { Environment } from '../config/environment.js';
 
 @Injectable()
@@ -28,6 +28,19 @@ export class StorageService implements OnModuleDestroy {
   // Provision buckets outside the API; readiness must never create or mutate data.
   async checkConnection(): Promise<void> {
     await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+  }
+
+  async putPhoto(key: string, buffer: Buffer, contentType: 'image/jpeg' | 'image/png'): Promise<void> {
+    await this.client.send(new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    }));
+  }
+
+  async deletePhoto(key: string): Promise<void> {
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 
   onModuleDestroy(): void {

@@ -92,8 +92,9 @@ Theme foundation checks passed: lint, typecheck and both production builds. The 
 
 ## Photo API progress
 
-1 of four photo endpoints implemented. Frontend remains pending. Jest/TypeScript tests and consolidated verification are later review commits.
+2 of four photo endpoints implemented. Frontend remains pending. Jest/TypeScript tests and consolidated verification are later review commits.
 
 - Implemented: GET /projects/:projectId/photos (200, malformed UUID 400, missing project 404), explicit public fields, request IDs and safe error/access logs.
+- Implemented: POST /projects/:projectId/photos, multipart field file, one JPEG/PNG up to 5 MiB, detected content type, UUID keys and compensation after failed metadata save; 201 on success.
 
 These commits are a user-authorized regrouping for review. Tests and the final verification walkthrough follow the four API implementations. They do not claim the original work happened in this exact order.

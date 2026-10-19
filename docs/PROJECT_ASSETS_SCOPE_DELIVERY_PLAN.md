@@ -6,7 +6,7 @@ Deliver one complete workflow for a project manager: open a seeded project's pho
 
 This is the selected slice of the broader **Related assets** Epic. The [product direction](PRODUCT_BLUEPRINT.md) explains possible expansion. This document defines current implementation tasks and acceptance criteria; it does not claim planned features are already delivered.
 
-**Current state:** 1 of four photo endpoints implemented. Frontend remains pending. Jest/TypeScript tests and consolidated verification are later review commits.
+**Current state:** 2 of four photo endpoints implemented. Frontend remains pending. Jest/TypeScript tests and consolidated verification are later review commits.
 
 **Time boundary:** the original exercise allows one day. Our implementation target for the reduced feature is roughly 4–6 additional focused hours, with integration uncertainty. Planning and framework time already spent must also be disclosed. Estimates are not actual time records.
 
@@ -319,5 +319,6 @@ At the end of the exercise, explain the next steps from the blueprint rather tha
 ## Review progress for this commit
 
 - Implemented: GET /projects/:projectId/photos (200, malformed UUID 400, missing project 404), explicit public fields, request IDs and safe error/access logs.
+- Implemented: POST /projects/:projectId/photos, multipart field file, one JPEG/PNG up to 5 MiB, detected content type, UUID keys and compensation after failed metadata save; 201 on success.
 
 Other scopes above remain a plan unless explicitly marked implemented here. Jest and final verification evidence are consolidated in later review commits.
