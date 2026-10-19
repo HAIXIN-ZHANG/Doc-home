@@ -75,20 +75,13 @@ export class PhotosService {
       });
       photo = await this.photos.save(record);
     } catch (error) {
-      // This is compensation, not a transaction across PostgreSQL and S3.
-      try {
-        await this.storage.deletePhoto(storageKey);
-      } catch (cleanupError) {
-        this.logger.error({
-          message: 'Photo file cleanup failed after metadata save failed',
-          requestId,
-          projectId,
-          photoId: id,
-          storageKey,
-          errorType: cleanupError instanceof Error ? cleanupError.name : 'UnknownError',
-        });
-      }
-      // Preserve the save failure even if compensation also failed.
+      // A save error can follow a committed transaction with a lost acknowledgement.
+      // Retain the file rather than break a valid record; reconcile using these IDs.
+      this.logger.error({
+        message: 'Photo metadata save failed; uploaded file retained for reconciliation',
+        requestId, projectId, photoId: id, storageKey,
+        errorType: error instanceof Error ? error.name : 'UnknownError',
+      });
       throw error;
     }
     return this.toResponse(photo);

@@ -48,12 +48,13 @@ Object keys are generated from project/photo UUIDs, never chosen by uploaded fil
 
 - The server loads the first page; a page-scoped TanStack Query cache handles subsequent refreshes without duplicating the hydration request.
 - The browser checks selection for quick feedback; the API checks actual JPEG/PNG signatures and the inclusive 5 MiB limit.
-- Upload writes bytes before metadata. A metadata-save failure attempts file cleanup while preserving the original error.
+- Upload writes bytes before metadata. If metadata saving throws, the file is retained and the error logged with request/project/photo IDs and storage key. A lost acknowledgement may hide a committed record; immediate cleanup could delete its valid file. The original error is preserved.
 - Delete requires filename confirmation. The API scopes by project/photo IDs, deletes metadata first, then attempts object cleanup. Database failure preserves the bytes; cleanup failure is logged but still returns 204 because the record is already gone.
 - The UI keeps a card until deletion is confirmed. Upload, delete and their reconciliation do not run over one another. Ambiguous outcomes require refresh, without automatic write retries; confirmed success followed by refresh failure is reported separately.
+- Storage uses a hard five-second attempt timeout and ten-second operation budget, including retries and response-body reads. Aborting a write does not prove it was not applied; SQL and total API duration remain outside this budget.
 - Failed queries remain errors rather than empty lists. Failed previews show a placeholder while keeping the filename and actions.
 
-There is no shared SQL/S3 transaction or durable cleanup job. Crashes, uncertain commit outcomes and failed compensation can leave inconsistent data or orphan files. Signature detection is not full decoding or malware scanning; buffered uploads and on-demand resizing are not designed for high concurrency. Project association is not authorization, and evidence-retention rules require business agreement before production use.
+There is no shared SQL/S3 transaction or durable cleanup job. Crashes, retained uploads after metadata errors and failed delete cleanup can leave orphan files. Retention avoids deleting bytes for a possibly committed record; it does not provide automatic reconciliation. Signature detection is not full decoding or malware scanning; buffered uploads and on-demand resizing are not designed for high concurrency. Project association is not authorization, and evidence-retention rules require business agreement before production use.
 
 ## Key decisions and trade-offs
 
@@ -63,6 +64,7 @@ There is no shared SQL/S3 transaction or durable cleanup job. Crashes, uncertain
 | Separate Next.js/NestJS apps in one repo | Clear web/API ownership with shared installation and history | Two local processes; more setup than a single app |
 | TypeORM, explicit migrations, deterministic seed | Fits NestJS and makes schema changes reviewable | Entity and migration changes must stay aligned; no production migration pipeline |
 | SQL metadata + local S3Mock | Exercises file storage without an AWS account | Extra container; emulator behaviour does not prove real S3 IAM/durability |
+| Retain files on metadata-save errors | Protects a possibly committed record when acknowledgement is lost | Even definite failures can leave unused files; logs support manual reconciliation, not a durable cleanup queue |
 | Original files + bounded read-time resizing | Avoids a stored-variant lifecycle | Repeated CPU work; no transform/CDN cache or guaranteed byte-size reduction |
 | Small DTO/types contract; no generated SDK/OpenAPI | Proportional to four endpoints | Manual types can drift; revisit code generation as consumers grow |
 | Native deletion confirmation; serialized writes | Simple interaction and predictable recovery | Browser-controlled appearance and no parallel uploads/deletions |

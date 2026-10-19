@@ -129,20 +129,28 @@ describe('upload project photo', () => {
     await expect(service.uploadProjectPhoto(projectId, upload)).rejects.toBe(error);
     expect(photos.save).not.toHaveBeenCalled();
   });
-  it('cleans up bytes after metadata save fails and preserves that error', async () => {
+  it('retains bytes after a save error because the commit outcome may be unknown', async () => {
     const error = new Error('save failed');
     photos.save.mockRejectedValue(error);
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     await expect(service.uploadProjectPhoto(projectId, upload)).rejects.toBe(error);
-    expect(storage.deletePhoto).toHaveBeenCalledWith(storage.putPhoto.mock.calls[0][0]);
+    expect(storage.deletePhoto).not.toHaveBeenCalled();
   });
-  it('logs compensation failure with request ID without replacing the save error', async () => {
-    const error = new Error('save failed');
-    photos.save.mockRejectedValue(error);
-    storage.deletePhoto.mockRejectedValue(new Error('PRIVATE_CLEANUP_MESSAGE'));
+  it('retains bytes if the save committed but its acknowledgement was lost', async () => {
+    let committed: Photo | undefined;
+    const error = new Error('acknowledgement lost');
+    photos.save.mockImplementationOnce(record => {
+      committed = Object.assign(record, { createdAt: photo.createdAt });
+      return Promise.reject(error);
+    });
     const log = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     await expect(service.uploadProjectPhoto(projectId, upload, 'request-1')).rejects.toBe(error);
-    expect(log).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'request-1', projectId, errorType: 'Error' }));
-    expect(JSON.stringify(log.mock.calls)).not.toContain('PRIVATE_CLEANUP_MESSAGE');
+    expect(committed?.storageKey).toBe(storage.putPhoto.mock.calls[0][0]);
+    expect(storage.deletePhoto).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(expect.objectContaining({
+      requestId: 'request-1', projectId, photoId: committed?.id, storageKey: committed?.storageKey,
+    }));
+    expect(JSON.stringify(log.mock.calls)).not.toContain('acknowledgement lost');
   });
 });
 
