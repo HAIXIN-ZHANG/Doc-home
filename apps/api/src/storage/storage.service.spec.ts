@@ -1,12 +1,12 @@
 import { Readable } from 'node:stream';
-import { afterAll, afterEach, beforeEach, describe, expect, it } from '@jest/globals';
+import { afterAll, afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
 import {
   DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, NoSuchKey, PutObjectCommand, S3Client,
 } from '@aws-sdk/client-s3';
 import type { GetObjectCommandOutput } from '@aws-sdk/client-s3';
 import { mockClient } from 'aws-sdk-client-mock';
-import { StorageService } from './storage.service.js';
+import { STORAGE_OPERATION_TIMEOUT_MS, StorageService } from './storage.service.js';
 import type { Environment } from '../config/environment.js';
 
 // AWS commands are intercepted in-process; these tests never contact S3/S3Mock.
@@ -87,6 +87,37 @@ describe('StorageService', () => {
     const stream = new Readable({ read() { this.destroy(error); } });
     s3.on(GetObjectCommand).resolves({ Body: body(stream) });
     await expect(service.getPhoto('key', 4)).rejects.toBe(error);
+    expect(stream.destroyed).toBe(true);
+  });
+  it('passes a deadline signal to every storage command', async () => {
+    const controller = new AbortController();
+    const timeout = jest.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal);
+    s3.on(HeadBucketCommand).resolves({});
+    s3.on(PutObjectCommand).resolves({});
+    s3.on(DeleteObjectCommand).resolves({});
+    s3.on(GetObjectCommand).resolves({ Body: body(Readable.from([Buffer.from('x')])) });
+    await service.checkConnection();
+    await service.putPhoto('key', Buffer.from('x'), 'image/png');
+    await service.getPhoto('key', 1);
+    await service.deletePhoto('key');
+    expect(timeout).toHaveBeenCalledTimes(4);
+    expect(timeout).toHaveBeenCalledWith(STORAGE_OPERATION_TIMEOUT_MS);
+    for (const call of s3.calls()) {
+      // The mock's tuple type omits SDK handler options, although the call records them.
+      const args: readonly unknown[] = call.args;
+      expect(args[1]).toEqual({ abortSignal: controller.signal });
+    }
+  });
+  it('aborts a stalled body after response headers and releases the stream', async () => {
+    const controller = new AbortController();
+    jest.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal);
+    const stream = new Readable({ read() { /* Deliberately never yields bytes or EOF. */ } });
+    s3.on(GetObjectCommand).resolves({ Body: body(stream) });
+    const read = service.getPhoto('key', 4);
+    const rejected = expect(read).rejects.toMatchObject({ name: 'AbortError' });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    controller.abort();
+    await rejected;
     expect(stream.destroyed).toBe(true);
   });
   it('propagates failed writes and cleanup operations', async () => {

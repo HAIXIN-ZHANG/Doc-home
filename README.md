@@ -100,7 +100,7 @@ Resizing preserves proportions, applies EXIF orientation and does not crop or en
 | 415 | Content is not JPEG/PNG |
 | 500 | Unexpected failure; public message is sanitized |
 
-Responses include `X-Request-Id`; error bodies include `requestId` for correlation with console logs. A valid empty project returns 200 with `photos: []`.
+Responses include `X-Request-Id`; error bodies include `requestId` for correlation with console logs. A valid empty project returns 200 with `photos: []`. Storage attempts fail after five seconds, with a ten-second budget across retries and response-body reads; these limits do not cover SQL or the whole API request. A write timeout does not prove the remote write failed.
 
 ## Checks and CI
 
@@ -116,7 +116,7 @@ Unit/component tests need no Docker or `.env`. Optional coverage commands are `p
 
 | Verification | Recorded result |
 | --- | --- |
-| API Jest | 9 suites / 119 cases: handlers, service rules, validation, storage boundaries, errors/logging, configuration and health |
+| API Jest | 9 suites / 121 cases: handlers, service rules, validation, storage boundaries, errors/logging, configuration and health |
 | Web Jest + React Testing Library | 1 suite / 9 cases: mutation coordination, validation and failure/recovery states |
 | Typecheck, lint and production builds | Both applications passed locally |
 | Clean local setup | Frozen install from cached packages, new database migration/seed and `pnpm dev` passed in an isolated checkout/storage project |
@@ -138,4 +138,4 @@ For a new schema change, update the Entity, add/register a new migration with re
 
 This is a photo-only demonstration, with one seeded project. Links, documents, videos, custom fields, authentication, pagination and cloud deployment are excluded. Project association checks are **not user authorization**.
 
-Uploads and deletes are not automatically retried. The UI waits for confirmed success and requires list reconciliation when a result is uncertain. SQL and object storage do not share a transaction: cleanup is best effort and can leave orphan files. Content-signature validation is not full decoding or malware scanning. See the [scope document](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) for design choices and next steps.
+Uploads and deletes are not automatically retried. The UI waits for confirmed success and requires list reconciliation when a result is uncertain. SQL and object storage do not share a transaction. A metadata-save error retains the uploaded file and logs IDs for reconciliation, because the transaction may already have committed. Delete cleanup is best effort. Both paths can leave orphan files. Content-signature validation is not full decoding or malware scanning. See the [scope document](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) for design choices and next steps.

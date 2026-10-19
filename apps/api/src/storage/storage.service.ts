@@ -1,9 +1,12 @@
-import { Readable } from 'node:stream';
+import { addAbortSignal, Readable } from 'node:stream';
 import { Injectable } from '@nestjs/common';
 import type { OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, NoSuchKey, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { Environment } from '../config/environment.js';
+
+// One budget covers SDK retries and consuming a response body.
+export const STORAGE_OPERATION_TIMEOUT_MS = 10_000;
 
 @Injectable()
 export class StorageService implements OnModuleDestroy {
@@ -22,13 +25,15 @@ export class StorageService implements OnModuleDestroy {
         secretAccessKey: config.get('S3_SECRET_ACCESS_KEY', { infer: true }),
       },
       maxAttempts: 2,
-      requestHandler: { connectionTimeout: 2000, requestTimeout: 5000 },
+      requestHandler: { connectionTimeout: 2000, requestTimeout: 5000, throwOnRequestTimeout: true },
     });
   }
 
   // Provision buckets outside the API; readiness must never create or mutate data.
   async checkConnection(): Promise<void> {
-    await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+    await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }), {
+      abortSignal: AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS),
+    });
   }
 
   // Keep the original bytes; optional resizing belongs to reads, not stored variants.
@@ -38,13 +43,14 @@ export class StorageService implements OnModuleDestroy {
       Key: key,
       Body: buffer,
       ContentType: contentType,
-    }));
+    }), { abortSignal: AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS) });
   }
 
   async getPhoto(key: string, maxBytes: number): Promise<Buffer | undefined> {
+    const signal = AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS);
     let object;
     try {
-      object = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      object = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal: signal });
     } catch (error) {
       // Missing bytes are distinct from access, bucket or connectivity failures.
       if (error instanceof NoSuchKey) return undefined;
@@ -52,6 +58,8 @@ export class StorageService implements OnModuleDestroy {
     }
     const body = object.Body;
     if (!(body instanceof Readable)) throw new Error('Photo storage returned no readable body');
+    // Response headers arriving does not mean the body has finished.
+    addAbortSignal(signal, body);
 
     // Finish the bounded read before sending 200, so stream failures remain HTTP errors.
     const chunks: Buffer[] = [];
@@ -73,7 +81,9 @@ export class StorageService implements OnModuleDestroy {
   }
 
   async deletePhoto(key: string): Promise<void> {
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }), {
+      abortSignal: AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS),
+    });
   }
 
   onModuleDestroy(): void {
