@@ -48,14 +48,14 @@ export function PhotoCard({ projectId, photo, onDelete, deletingPhotoId, deletio
           {photo.mimeType === 'image/jpeg' ? 'JPG' : 'PNG'} · {size}
         </p>
         <div className={css({ display: 'flex', gap: '2', flexWrap: 'wrap' })}>
-        <a href={photoContentUrl(projectId, photo.id)} target="_blank" rel="noopener noreferrer"
-          aria-label={`View original ${photo.originalName} (opens in a new tab)`}
-          className={button({ visual: 'secondary' })}>
-          View
-        </a>
-        <Button visual="danger" disabled={deletionBlocked} aria-label={`Delete ${photo.originalName}`} onClick={() => onDelete(photo)}>
-          {deletingPhotoId === photo.id ? 'Deleting…' : 'Delete'}
-        </Button>
+          <a href={photoContentUrl(projectId, photo.id)} target="_blank" rel="noopener noreferrer"
+            aria-label={`View original ${photo.originalName} (opens in a new tab)`}
+            className={button({ visual: 'secondary' })}>
+            View
+          </a>
+          <Button visual="danger" disabled={deletionBlocked} aria-label={`Delete ${photo.originalName}`} onClick={() => onDelete(photo)}>
+            {deletingPhotoId === photo.id ? 'Deleting…' : 'Delete'}
+          </Button>
         </div>
       </div>
     </li>

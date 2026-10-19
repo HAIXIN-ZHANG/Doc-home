@@ -11,11 +11,12 @@ import { PhotoUploadError, uploadPhoto, validatePhoto } from './photo-upload-api
 interface PhotoUploadProps {
   projectId: string;
   refreshPhotos: () => Promise<void>;
+  blocked?: boolean;
 }
 
 type Feedback = { kind: 'success' | 'error'; message: string };
 
-export function PhotoUpload({ projectId, refreshPhotos }: PhotoUploadProps) {
+export function PhotoUpload({ projectId, refreshPhotos, blocked = false }: PhotoUploadProps) {
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -23,6 +24,7 @@ export function PhotoUpload({ projectId, refreshPhotos }: PhotoUploadProps) {
   const [refreshing, setRefreshing] = useState(false);
   const selectionError = file ? validatePhoto(file) : undefined;
   const upload = useMutation({
+    mutationKey: ['upload-photo', projectId],
     mutationFn: async (photo: File) => {
       await uploadPhoto(projectId, photo);
       // The write and the follow-up query are separate outcomes; preserve confirmed success.
@@ -35,7 +37,7 @@ export function PhotoUpload({ projectId, refreshPhotos }: PhotoUploadProps) {
     },
     retry: false,
   });
-  const busy = upload.isPending || refreshing;
+  const busy = upload.isPending || refreshing || blocked;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
