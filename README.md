@@ -1,6 +1,6 @@
 # Doc-home
 
-Sync Technologies take-home exercise. Current status: application/theme and database foundations, plus project photo query, upload and file-read APIs, are implemented. All four photo endpoints are implemented. The web page now displays project details, empty/populated photo lists and original-image links. Web upload/delete controls and automated frontend tests remain pending.
+Sync Technologies take-home exercise. Current status: application/theme and database foundations, plus project photo query, upload and file-read APIs, are implemented. All four photo endpoints are implemented. The web page now displays project details, empty/populated photo lists and original-image links. Web photo upload is implemented; Delete controls and automated frontend tests remain pending.
 
 ## Structure
 
@@ -257,7 +257,7 @@ Try `w=0` for 400, or `/projects/not-a-uuid/photos` for 400. Match `X-Request-Id
 
 **Latest recheck:** Jest 9 suites/118 cases, API typecheck/lint/build and migration status passed. Real PostgreSQL/S3Mock checks passed for upload → query → original/resize read, API-process restart persistence, input/file errors, association/missing-object responses, sanitized corrupt-image 500 and logs. Dedicated check data was cleaned up. Storage containers were left running, so this does not claim a new storage-container restart or a fresh-environment installation check. No new HTTP test suite was committed; the repeatable unit suite remains Jest.
 
-## Web: project photos (first increment)
+## Web: project photos
 
 `/` redirects to `/projects/39f7c890-a5aa-4a74-8a3a-7fba28ac58b6/photos`. The page shows project name/address, count and a responsive photo collection (mobile 1 column, tablet 2, desktop 3). An empty project shows “No photos yet”; a failed query is never converted to an empty collection. Unknown projects show a not-found state and demo link. A loading route and retryable error boundary are included.
 
@@ -265,14 +265,24 @@ The initial query runs in a Next.js server component against `API_INTERNAL_URL` 
 
 Cards request bounded previews (`w=800&h=500`) directly from the API, with Next image optimization disabled to avoid a second transform cache. The original opens in a new tab with noopener/noreferrer and an accessible label. A failed preview shows a local placeholder without removing the name or View link. Local Figma SVGs retain their original root dimensions. Photos come from the API, not the illustrative Figma sample images.
 
-**Deliberate increment boundary:** the upload panel and Delete action from Figma are not rendered until they work. No inactive business controls are added. The existing theme, page layout and two collection states follow the design; header/page max-width and gutters adapt at mobile/tablet/desktop thresholds. The frontend component/browser test suites will be added after upload/delete, per the agreed order.
+**Deliberate increment boundary:** the upload panel is now functional; the Delete action remains absent until its increment works. No inactive business controls are added. The existing theme, page layout and two collection states follow the design; header/page max-width and gutters adapt at mobile/tablet/desktop thresholds. The frontend component/browser test suites will be added after upload/delete, per the agreed order.
 
 **Checks completed:** web typecheck, zero-warning ESLint and production build passed. A one-off Playwright check using installed Chrome, production Next.js on localhost:3100 and actual Nest/PostgreSQL/S3Mock verified empty/populated projects, actual preview loading, original-image popup, broken-preview fallback, missing project/demo navigation and server-load failure → Try again → recovery. Desktop 1440, tablet 834, mobile 390 and narrow 320 were checked for column counts and horizontal overflow. No uncaught page errors occurred in the successful flow; deliberately broken images/offline requests produce expected failed-request diagnostics. Dedicated fixtures and processes were cleaned up. Screenshots/scripts stayed outside Git. Loading UI is implemented but was not separately tested with a controlled slow response; Safari/Firefox and automated accessibility audits were not run.
+
+### Upload photos (second increment)
+
+Choose one JPEG/PNG photo up to and including 5 MiB, then click **Upload photo**. Client checks give immediate feedback for unsupported MIME labels, empty/oversized files and invalid filenames; the API remains authoritative and validates actual file bytes. The native file picker uses the existing secondary Button, and the local Figma upload SVG stays 24×24. Controls stack on mobile. This increment adds no dependencies.
+
+`PhotoUpload` owns file selection, mutation and accessible inline feedback. `photo-upload-api.ts` holds early validation and the multipart HTTP request; `PhotoQuery` supplies the existing list refresh. Upload uses a 30-second request timeout, sends the single `file` field and lets the browser set the multipart boundary. Upload/selection are disabled while the operation and follow-up refresh are pending. After a confirmed 201 and the follow-up query attempt, selection is cleared. A failed list refresh does not change the confirmed upload outcome.
+
+Uploads are **not automatically retried**. Network/timeout and unrecognised server outcomes may have saved successfully, so the form requires **Refresh photos** before another upload. A failed reconciliation keeps uploads blocked; successful reconciliation asks the user to check the list before manually uploading again. This does not provide idempotency or guarantee that a late server write is already visible. A confirmed upload followed by a failed list query explicitly says “Photo uploaded, but the list could not be refreshed”, rather than misreporting the write as failed. Known 400/404/413/415 responses use safe user messages, not raw server details.
+
+**Checks completed:** web typecheck, lint and production build passed. A temporary Chrome/Playwright walkthrough against local Nest/PostgreSQL/S3Mock checked real PNG upload, pending controls, selection reset, list/count refresh, client size/type/empty checks, API rejection of fake image bytes, saved-but-refresh-failed recovery, a saved upload with a deliberately lost response (one POST, no automatic retry), failed/successful reconciliation, and 1440/834/390/320 layouts including long names. No uncaught page exceptions occurred; the existing missing `/favicon.ico` returns 404, and intentional failure scenarios produce expected request diagnostics. Dedicated fixtures/processes were removed; shared storage/data were preserved. This is runtime verification, not a committed frontend test suite. Actual 30-second timeout expiry, Safari/Firefox and a full accessibility audit remain unverified.
 
 ## Design reference
 
 [Figma — editable photo management design](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home-%C2%B7-Photo-management?node-id=3-5)
 
-The [responsive photo-page design](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#design-reference--displayview-implemented-mutations-pending) includes the editable Figma link, two UI states, three viewport layouts and exported previews. The display/view portion is implemented; the upload form and Delete action remain later increments. The same change includes the Panda presets, semantic color tokens, shared text styles, self-hosted Inter font and reusable Button. Breakpoints are named `mobile` (0rem), `tablet` (48rem) and `desktop` (64rem). Photo cards and the responsive grid now use those foundations.
+The [responsive photo-page design](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#design-reference) includes the editable Figma link, two UI states, three viewport layouts and exported previews. Display/view and single-photo upload are implemented; Delete remains a later increment. The same change includes the Panda presets, semantic color tokens, shared text styles, self-hosted Inter font and reusable Button. Breakpoints are named `mobile` (0rem), `tablet` (48rem) and `desktop` (64rem). Photo cards and the responsive grid now use those foundations.
 
 Theme foundation checks passed: lint, typecheck and both production builds. The production homepage, generated CSS and self-hosted font were served successfully. Responsive photo-page behaviour remains to be implemented and verified.

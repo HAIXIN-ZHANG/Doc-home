@@ -146,9 +146,13 @@ This order prioritises a correct list after a committed database deletion. A fai
 
 ## 8. Scope E — one frontend page
 
-**First increment implemented:** project name/address, count, empty/populated lists, bounded preview and original View, preview fallback, loading/not-found/error routes, and 1/2/3-column responsive layout. Initial server fetch seeds a page-scoped TanStack Query cache; hydration does not duplicate the fetch. Browser requests use the existing /api rewrite. Upload form and Delete action are intentionally absent until their increments work. Shared API response decoding rejects malformed data rather than fabricating an empty list.
+**First increment implemented:** project name/address, count, empty/populated lists, bounded preview and original View, preview fallback, loading/not-found/error routes, and 1/2/3-column responsive layout. Initial server fetch seeds a page-scoped TanStack Query cache; hydration does not duplicate the fetch. Browser requests use the existing /api rewrite. The upload form is now implemented in the second increment below; Delete remains absent until its increment works. Shared API response decoding rejects malformed data rather than fabricating an empty list.
 
 **Verification:** web typecheck/lint/production build passed. One-off real-browser checks (Playwright + installed Chrome) exercised empty/populated projects, original popup, failed preview, missing-project navigation and API-offline error/retry recovery at 1440/834/390/320 widths. Temporary fixtures/processes were cleaned up. No new frontend unit/E2E suite was committed; controlled slow-loading, Safari/Firefox and full accessibility audits remain unverified.
+
+**Second increment implemented:** a separate `PhotoUpload` component, early type/size/filename feedback, explicit single-file multipart upload, pending controls, success/reset and list refresh. The request helper stays separate from UI; `PhotoQuery` supplies the authoritative refresh. Upload has no automatic retries. An uncertain result requires reconciliation before another attempt; a failed refresh after confirmed save is labelled separately. This is not idempotency, and a late server commit can remain temporarily unobserved. The existing local upload SVG and Button recipe are reused without new dependencies.
+
+**Upload verification:** web typecheck/lint/build and real local Chrome/Playwright checks passed for valid PNG upload, selection reset/list update, disabled pending controls, client 5 MiB boundary/type/empty checks, server content rejection, successful save with failed refresh, lost response after persistence with one POST, failed/successful reconciliation, and 1440/834/390/320 layouts with long names. Existing favicon 404 and deliberately failed requests were identified; no uncaught page exceptions. Temporary fixtures/processes were cleaned up. Frontend unit/E2E suites remain a later increment; actual timeout expiry, Safari/Firefox and full accessibility are not claimed.
 
 **Route:** `/projects/:projectId/photos`. `/` can redirect to the known seeded project's page after the seed exists; it must not become a project dashboard.
 
@@ -176,11 +180,11 @@ filename.jpg    kitchen.png
 
 Keep page/container, upload control and photo list understandable; do not create a component library. For a mutation timeout, tell the user the result could not be confirmed and refresh the list before inviting a retry. Do not automatically retry upload: the first attempt may already have saved successfully. If a successful mutation is followed by a failed refresh, distinguish “saved/deleted, list refresh failed” from “operation failed”.
 
-### Design reference — display/view implemented, mutations pending
+### Design reference
 
 [Editable Figma file](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home-%C2%B7-Photo-management?node-id=3-5)
 
-One photo page has two designed states: empty and populated. Each is shown at Desktop (1440px), Tablet (834px) and Mobile (390px), for six frames total. The screens use editable text, SVG icons, component instances and bound variables. They are design references rather than a Figma clickable prototype. The web display/view states are now implemented; upload/delete controls follow in separate increments.
+One photo page has two designed states: empty and populated. Each is shown at Desktop (1440px), Tablet (834px) and Mobile (390px), for six frames total. The screens use editable text, SVG icons, component instances and bound variables. They are design references rather than a Figma clickable prototype. The web display/view states and single-photo upload are now implemented; Delete follows in a separate increment.
 
 | Viewport | Intended implementation |
 | --- | --- |
@@ -211,7 +215,7 @@ The centered `page` size is 76rem (1216px) **including** side padding. At deskto
 | Text | `pageTitle`, `heading`, `body`, `small`, `label`; Inter Variable is self-hosted via Fontsource |
 | Button | One recipe and native React wrapper: `primary`, `secondary`, `danger`; minimum 44px height, hover, focus-visible and disabled states |
 
-The reusable Button defaults to `type="button"`; form submission must be explicit. The scaffold's existing health link demonstrates the shared recipe without adding an inactive business control. PhotoCard, upload feedback components and the responsive photo grid remain feature work. No runtime UI component library was added. Figma buttons use an adapted Simple Design System base as a design asset only.
+The reusable Button defaults to `type="button"`; form submission must be explicit. The scaffold's existing health link demonstrates the shared recipe without adding an inactive business control. PhotoCard, upload feedback and the responsive photo grid now use the shared foundations; Delete remains feature work. No runtime UI component library was added. Figma buttons use an adapted Simple Design System base as a design asset only.
 
 **Planned grid usage:**
 
