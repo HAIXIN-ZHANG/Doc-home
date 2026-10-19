@@ -6,7 +6,7 @@ Deliver one complete workflow for a project manager: open a seeded project's pho
 
 This is the selected slice of the broader **Related assets** Epic. The [product direction](PRODUCT_BLUEPRINT.md) explains possible expansion. This document defines current implementation tasks and acceptance criteria; it does not claim planned features are already delivered.
 
-**Current state:** the pnpm workspace, Next.js/Panda frontend, NestJS API, PostgreSQL connection, validated environment configuration, S3 client/bucket health check and health route exist. Frontend/API run locally on ports 3000/3001; Docker runs PostgreSQL and S3Mock for local object storage. Lint, typecheck, build and local health/proxy checks passed during framework setup. Project/Photo entities, the initial migration, repeatable demo seed, shared database CLI options and feature modules now exist. The photo query endpoint, response types, UUID validation and basic request/error logs now exist. Upload and unit tests now exist. Original-image read and optional proportional w/h resizing are implemented. All four backend endpoints are implemented and verified; the web page now displays project context, empty/populated lists and original-image links; web upload/delete are implemented; focused Jest/React Testing Library regressions exist, while a committed Playwright E2E suite and CI remain pending; Jest/TypeScript unit tests now cover the four implemented photo handlers and related logic.
+**Current state:** the pnpm workspace, Next.js/Panda frontend, NestJS API, PostgreSQL connection, validated environment configuration, S3 client/bucket health check and health route exist. Frontend/API run locally on ports 3000/3001; Docker runs PostgreSQL and S3Mock for local object storage. Lint, typecheck, build and local health/proxy checks passed during framework setup. Project/Photo entities, the initial migration, repeatable demo seed, shared database CLI options and feature modules now exist. The photo query endpoint, response types, UUID validation and basic request/error logs now exist. Upload and unit tests now exist. Original-image read and optional proportional w/h resizing are implemented. All four backend endpoints are implemented and verified; the web page now displays project context, empty/populated lists and original-image links; web upload/delete are implemented; focused Jest/React Testing Library regressions exist, while a committed Playwright E2E suite remains pending; path-aware CI is configured and awaits its first hosted run; Jest/TypeScript unit tests now cover the four implemented photo handlers and related logic.
 
 **Time boundary:** the original exercise allows one day. Our implementation target for the reduced feature is roughly 4–6 additional focused hours, with integration uncertainty. Planning and framework time already spent must also be disclosed. Estimates are not actual time records.
 
@@ -20,7 +20,7 @@ This is the selected slice of the broader **Related assets** Epic. The [product 
 | One page with upload control and photo list | Separate upload/search/detail screens, filters and pagination |
 | Backend validation, clear UI states and failure cleanup | Bulk upload, pre-generated thumbnails and automatic retries |
 | Local S3-compatible object storage and PostgreSQL persistence | Real AWS deployment, authentication and production infrastructure |
-| Focused tests, checked startup steps and review notes | Full coverage, an interactive Figma prototype and CI/CD implementation |
+| Focused tests, path-aware CI, checked startup steps and review notes | Full coverage, an interactive Figma prototype and CD/deployment |
 
 A photo-only implementation demonstrates file handling; it does **not** demonstrate external-link handling or all shared behaviours across asset types. Explain that limit in the PR, and use the blueprint to discuss how a second type could be introduced.
 
@@ -331,7 +331,7 @@ The original exercise permits one representative subset, but the company's agree
 | Local S3 emulator with AWS SDK | Exercises object APIs without a cloud account; keeps bytes separate from SQL | Extra container/dependency; emulator does not prove AWS permissions or production durability |
 | Store originals; optional read-time resizing; no pagination | No stored variant lifecycle; caller can request bounded dimensions | Per-request CPU/latency; validate decoding/output limits, and add caching/pagination as usage grows |
 | Web/API local, Docker PostgreSQL and S3Mock | Quick app iteration with reproducible storage services | Reviewer needs Node/pnpm and Docker; emulator version stays pinned |
-| No auth or CI implementation | Protects the small time box | Access control and deployment quality work precede real customer use |
+| No auth or CD; CI runs existing checks | Keeps infrastructure work within the small scope | Real-user access control, integration/browser gates and deployment work remain |
 | Best-effort file cleanup | Makes partial failures explicit without a job system | Orphans remain possible; add reconciliation when needed |
 
 At the end of the exercise, explain the next steps from the blueprint rather than implying they were delivered. Do not expand this scope to make the code look more elaborate.
@@ -344,6 +344,14 @@ The third frontend increment connects Delete with filename confirmation, pending
 
 The multipart parser now decodes browser filenames as UTF-8, fixing corrupted non-ASCII labels without changing stored file bytes or schema. The frontend serializes writes and their follow-up query to avoid overlapping upload/delete reconciliation. Existing data is not rewritten automatically.
 
-Jest/React Testing Library configuration, test scripts, helpers, nine interaction regressions and the existing test dependencies/lockfile belong together in the frontend test commit. Coverage is focused on these behaviours; a repeatable committed Playwright E2E suite and CI still follow separately. The previous feature commits keep their original boundaries.
+Jest/React Testing Library configuration, test scripts, helpers, nine interaction regressions and the existing test dependencies/lockfile belong together in the frontend test commit. Coverage is focused on these behaviours; a repeatable committed Playwright E2E suite remains separate; the simple CI workflow is now configured. The previous feature commits keep their original boundaries.
 
 The review also ensures all three small Button recipe variants are generated even when the shared wrapper forwards a runtime value; this fixes the previously missing danger styles. The tab icon reuses an existing SVG. Final checks passed: both apps typecheck/lint/build, backend 119 unit cases, frontend nine component cases, frozen lockfile consistency and a real local Chrome flow at four viewport widths. Original-image bytes and UTF-8 labels were checked against the API; browser danger color and absence of console/page errors were checked after the final build. Temporary screenshots/scripts remain outside the repository.
+
+## CI increment
+
+GitHub Actions runs on branch pushes and PRs into `main`, selecting web/API jobs from file changes. Each app runs typecheck, lint, Jest and build with locked dependencies, Node 24 and pnpm 10.24.0. Public photo DTOs and shared/root configuration select both jobs; docs-only changes skip application jobs. New branches, missing history and manual runs check both. PRs use the whole PR diff; renames retain both old/new paths. Read-only GitHub permissions and per-event concurrency limits keep this limited to verification.
+
+The pnpm store is cached, but no database/storage services, full E2E run, deployment or CD is added. Unit/component tests do not need live dependencies. The full workspace is installed in each selected job for a simple, reproducible setup; application checks remain separate. Both push and PR events are retained, accepting duplicate runs when a PR is open. Manual runs become available once this workflow exists on the default branch.
+
+Workflow parsing, Bash syntax, command mapping and 15 temporary Git-history/path scenarios passed locally. API 119 cases, web nine cases, both apps typecheck/lint/build and frozen-lockfile consistency are checked locally. The workflow's actual hosted result remains unverified until push. Coverage output is excluded from web ESLint so local coverage generation does not break later lint runs.
