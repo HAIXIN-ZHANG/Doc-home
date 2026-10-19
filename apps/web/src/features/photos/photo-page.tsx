@@ -46,7 +46,7 @@ export function PhotoPage({ project, photos, children, onDelete, deletingPhotoId
             display: 'grid', gridTemplateColumns: { mobile: 'minmax(0, 1fr)', tablet: 'repeat(2, minmax(0, 1fr))', desktop: 'repeat(3, minmax(0, 1fr))' },
             gap: { mobile: '4', tablet: '6' },
           })}>
-            {photos.map(photo => <PhotoCard key={photo.id} projectId={project.id} photo={photo} onDelete={onDelete} deletingPhotoId={deletingPhotoId} deletionBlocked={deletionBlocked} />)}
+            {photos.map((photo, index) => <PhotoCard eagerPreview={index === 0} key={photo.id} projectId={project.id} photo={photo} onDelete={onDelete} deletingPhotoId={deletingPhotoId} deletionBlocked={deletionBlocked} />)}
           </ul>
         )}
       </section>

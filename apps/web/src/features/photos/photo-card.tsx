@@ -14,8 +14,8 @@ export interface PhotoDeleteActions {
   deletionBlocked: boolean;
 }
 
-export function PhotoCard({ projectId, photo, onDelete, deletingPhotoId, deletionBlocked }: {
-  projectId: string; photo: ProjectPhoto;
+export function PhotoCard({ projectId, photo, onDelete, deletingPhotoId, deletionBlocked, eagerPreview = false }: {
+  projectId: string; photo: ProjectPhoto; eagerPreview?: boolean;
 } & PhotoDeleteActions) {
   const [previewFailed, setPreviewFailed] = useState(false);
   const size = photo.sizeBytes >= 1024 * 1024
@@ -36,6 +36,8 @@ export function PhotoCard({ projectId, photo, onDelete, deletingPhotoId, deletio
             alt={photo.originalName}
             fill
             unoptimized
+            // Do not defer the first visible preview; later photos remain lazy-loaded.
+            loading={eagerPreview ? 'eager' : 'lazy'}
             sizes="(min-width: 1024px) 368px, (min-width: 768px) 50vw, 100vw"
             className={css({ objectFit: 'cover' })}
             onError={() => setPreviewFailed(true)}
