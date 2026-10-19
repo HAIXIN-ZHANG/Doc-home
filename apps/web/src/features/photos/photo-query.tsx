@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { css } from '../../../styled-system/css';
 import { PhotoPage } from './photo-page';
@@ -9,12 +9,12 @@ import { PhotoUpload } from './photo-upload';
 import { projectPhotosPath } from './photo-urls';
 import { parseProjectPhotos } from './photo-types';
 import { deletePhoto, PhotoDeleteError } from './photo-delete-api';
-import type { ProjectPhoto } from './photo-types';
-import type { ProjectPhotos } from './photo-types';
+import type { ProjectPhoto, ProjectPhotos } from './photo-types';
 
 function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
   const projectId = initialData.project.id;
   const client = useQueryClient();
+  const uploading = useIsMutating({ mutationKey: ['upload-photo', projectId] }) > 0;
   const queryKey = ['project-photos', projectId];
   const [deletionFeedback, setDeletionFeedback] = useState<{ error: boolean; message: string } | null>(null);
   const [needsRefresh, setNeedsRefresh] = useState(false);
@@ -52,7 +52,7 @@ function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
   });
 
   async function handleDelete(photo: ProjectPhoto) {
-    if (deletion.isPending || needsRefresh || refreshing) return;
+    if (deletion.isPending || uploading || query.isFetching || needsRefresh || refreshing) return;
     // Native confirmation supplies keyboard/focus handling without a custom modal.
     if (!window.confirm(`Delete "${photo.originalName}"? This cannot be undone.`)) return;
     setDeletionFeedback(null);
@@ -69,7 +69,7 @@ function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
   }
 
   async function refreshAfterDeletion() {
-    if (refreshing || deletion.isPending) return;
+    if (refreshing || deletion.isPending || uploading || query.isFetching) return;
     setRefreshing(true);
     try {
       await query.refetch({ throwOnError: true });
@@ -83,16 +83,17 @@ function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
   return (
     <PhotoPage {...query.data} onDelete={photo => { void handleDelete(photo); }}
       deletingPhotoId={deletion.isPending ? deletion.variables?.id : undefined}
-      deletionBlocked={deletion.isPending || needsRefresh || refreshing}>
+      deletionBlocked={deletion.isPending || uploading || query.isFetching || needsRefresh || refreshing}>
       {deletionFeedback ? <p role={deletionFeedback.error ? 'alert' : 'status'} className={css({ textStyle: 'small', color: deletionFeedback.error ? 'status.danger' : 'status.success' })}>{deletionFeedback.message}</p> : null}
-      {needsRefresh ? <Button visual="secondary" disabled={refreshing} onClick={() => { void refreshAfterDeletion(); }}>{refreshing ? 'Refreshing…' : 'Refresh after deletion'}</Button> : null}
-      <PhotoUpload projectId={projectId} refreshPhotos={async () => {
+      {needsRefresh ? <Button visual="secondary" disabled={refreshing || uploading || query.isFetching} onClick={() => { void refreshAfterDeletion(); }}>{refreshing ? 'Refreshing…' : 'Refresh after deletion'}</Button> : null}
+      {/* Serialize writes and their reconciliation so one action cannot cancel another's GET. */}
+      <PhotoUpload projectId={projectId} blocked={deletion.isPending || query.isFetching || refreshing} refreshPhotos={async () => {
         await query.refetch({ throwOnError: true });
       }} />
       {query.isError ? (
         <div role="alert" className={css({ color: 'status.danger', display: 'flex', flexWrap: 'wrap', gap: '3', alignItems: 'center' })}>
           <p>The latest photos could not be loaded. The list below may be out of date.</p>
-          <Button visual="secondary" disabled={query.isFetching} onClick={() => { void query.refetch(); }}>
+          <Button visual="secondary" disabled={query.isFetching || deletion.isPending || uploading || refreshing} onClick={() => { void query.refetch(); }}>
             {query.isFetching ? 'Trying again…' : 'Try again'}
           </Button>
         </div>

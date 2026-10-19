@@ -88,6 +88,8 @@ export default defineConfig({
         button: {
           className: 'button',
           jsx: ['Button'],
+          // The wrapper forwards a runtime variant; keep these three small variants available.
+          staticCss: ['*'],
           base: {
             display: 'inline-flex',
             alignItems: 'center',
