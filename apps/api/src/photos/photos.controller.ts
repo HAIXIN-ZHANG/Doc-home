@@ -57,6 +57,8 @@ export class PhotosController {
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {
+      // Browser FormData sends UTF-8 filenames; Multer otherwise defaults to Latin-1.
+      defParamCharset: 'utf8',
       // Multer rejects at its threshold; the pipe enforces an inclusive 5 MiB limit.
       limits: { fileSize: MAX_PHOTO_BYTES + 1, files: 1, fields: 0, parts: 2 },
     }),
