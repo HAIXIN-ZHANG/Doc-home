@@ -1,104 +1,303 @@
 'use client';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fileHash, getStatus, parseStatus, request, sendMissingParts, uploadsPath, validateVideoFile, VideoRequestError } from './video-api';
-import type { UploadStatus } from './video-api';
-const resumable=(task: UploadStatus) => task.state==='CREATED' || task.state==='UPLOADING';
-export function useVideoUpload(project: string, published: () => Promise<unknown>) {
-  const key=`doc-home:video-upload:v1:${project}`;
-  const [task,setTask]=useState<UploadStatus|null>(null);
-  const [busy,setBusy]=useState(false),[checking,setChecking]=useState(false),[unknown,setUnknown]=useState(false),[message,setMessage]=useState('');
-  const recovered=useRef<string|null>(null);
-  const current=useRef<UploadStatus|null>(null), operation=useRef<AbortController|null>(null), mounted=useRef(false);
-  const callback=useRef(published); useEffect(()=>{callback.current=published;},[published]);
-  const remember=useCallback((status: UploadStatus) => {
-    current.current=status; recovered.current=status.uploadId; setTask(status);
-    try { localStorage.setItem(key,JSON.stringify({version:1,uploadId:status.uploadId})); }
-    catch { setMessage('Upload continues, but this browser cannot save recovery information.'); }
-  },[key]);
-  const run=useCallback(async (work: (signal: AbortSignal)=>Promise<void>) => {
-    if(operation.current) return;
-    const controller=new AbortController(); operation.current=controller; setBusy(true); setMessage('');
-    try { await work(controller.signal); }
-    catch(error) {
-      if(!controller.signal.aborted && mounted.current) {
-        if(error instanceof VideoRequestError && error.status===404) {
-          current.current=null;recovered.current=null;setTask(null);setUnknown(false);
-          try {localStorage.removeItem(key);} catch { /* A confirmed missing session cannot be resumed. */ }
-          setMessage('This upload no longer exists. Choose a video to start a new upload.');
-        } else {setUnknown(true);setMessage(error instanceof Error ? error.message : 'Check upload status before continuing.');}
-      }
-    }
-    finally { if(operation.current===controller) { operation.current=null; if(mounted.current) {setBusy(false);setChecking(false);} } }
-  },[key]);
-  const reconcile=useCallback(async (id: string, signal: AbortSignal) => {
-    const status=await getStatus(project,id,signal); signal.throwIfAborted(); remember(status); setUnknown(false);
-    if(status.state==='READY') { await callback.current(); setMessage(status.assetAvailable?'Video added.':'This video has been deleted.'); }
-    else if(status.error) setMessage(status.error.message);
-    return status;
-  },[project,remember]);
-  useEffect(()=>{
-    mounted.current=true;
-    let id: string|undefined;
-    try { const stored=JSON.parse(localStorage.getItem(key)??'null') as {version?:number;uploadId?:string}|null; if(stored?.version===1 && /^[a-f0-9-]{36}$/i.test(stored.uploadId??'')) id=stored!.uploadId; }
-    catch { /* Missing/blocked browser storage does not block viewing assets. */ }
-    if(id) recovered.current=id;
-    let active=true;
-    if(id) queueMicrotask(()=>{if(active) void run(async signal=>{await reconcile(id!,signal);});});
-    return ()=>{active=false;mounted.current=false;operation.current?.abort();operation.current=null;};
-  },[key,reconcile,run]);
-  const check=useCallback(()=>run(async signal=>{
-    const id=current.current?.uploadId??recovered.current;
-    if(id) await reconcile(id,signal);
-    else {await callback.current();setUnknown(false);setMessage('Videos refreshed. Review the list before starting again. An unconfirmed session expires automatically.');}
-  }),[run,reconcile]);
-  useEffect(()=>{
-    if(task?.state!=='PROCESSING' || busy || unknown) return;
-    const timer=setTimeout(()=>{if(document.visibilityState==='visible') void check();},1000);
-    const foreground=()=>{if(document.visibilityState==='visible') void check();};
-    document.addEventListener('visibilitychange',foreground);
-    return ()=>{clearTimeout(timer);document.removeEventListener('visibilitychange',foreground);};
-  },[task,busy,unknown,check]);
-  async function upload(file: File) {
-    try { validateVideoFile(file); } catch(error) {setMessage((error as Error).message);return;}
-    await run(async signal=>{
-      let active=current.current ? await reconcile(current.current.uploadId,signal) : null;
-      if(active && !resumable(active)) return;
-      setChecking(true); const hash=await fileHash(file); signal.throwIfAborted(); setChecking(false);
-      if(active && (active.fileSizeBytes!==file.size || active.expectedSha256!==hash)) {setMessage('This is a different file. Select the original video to resume.');return;}
-      if(!active) {
-        active=parseStatus(await (await request(uploadsPath(project),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fileName:file.name,fileSizeBytes:file.size,mimeType:'video/mp4',expectedSha256:hash})},signal)).json(),project);
-        signal.throwIfAborted();remember(active);
-      }
-      const id=active.uploadId;
-      // Serialize progress GETs so an older snapshot cannot move the acknowledged count backwards.
-      let progress=Promise.resolve();
+
+import { isUuid } from '@/lib/validation';
+
+import {
+  calculateFileSha256,
+  getUploadStatus,
+  requestVideoResponse,
+  sendMissingParts,
+  projectUploadsUrl,
+  validateVideoFile,
+  VideoRequestError,
+} from './video-api';
+import { isResumableUpload, parseUploadStatus } from './video-types';
+import type { UploadStatus } from './video-types';
+
+const STATUS_POLL_INTERVAL_MS = 1000;
+
+export function useVideoUpload(projectId: string, refreshPublishedVideos: () => Promise<unknown>) {
+  const recoveryKey = `doc-home:video-upload:v1:${projectId}`;
+  const [status, setStatus] = useState<UploadStatus | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  const [isCheckingFile, setIsCheckingFile] = useState(false);
+  const [isStatusUnknown, setIsStatusUnknown] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const recoveredUploadId = useRef<string | null>(null);
+  const statusRef = useRef<UploadStatus | null>(null);
+  const operationController = useRef<AbortController | null>(null);
+  const isMounted = useRef(false);
+  const refreshVideosRef = useRef(refreshPublishedVideos);
+
+  useEffect(() => {
+    refreshVideosRef.current = refreshPublishedVideos;
+  }, [refreshPublishedVideos]);
+
+  const saveStatus = useCallback(
+    (upload: UploadStatus) => {
+      statusRef.current = upload;
+      recoveredUploadId.current = upload.uploadId;
+      setStatus(upload);
       try {
-        await sendMissingParts(project,active,file,signal,()=>{progress=progress.then(async ()=>{await reconcile(id,signal);});return progress;});
-      } catch(error) { await reconcile(id,signal); throw error; }
-      await request(`${uploadsPath(project,id)}/complete`,{method:'POST'},signal);
-      await reconcile(id,signal);
+        localStorage.setItem(
+          recoveryKey,
+          JSON.stringify({ version: 1, uploadId: upload.uploadId }),
+        );
+      } catch {
+        setFeedback('Upload continues, but this browser cannot save recovery information.');
+      }
+    },
+    [recoveryKey],
+  );
+
+  const runOperation = useCallback(
+    async (operation: (signal: AbortSignal) => Promise<void>) => {
+      if (operationController.current) return;
+      const controller = new AbortController();
+      operationController.current = controller;
+      setIsBusy(true);
+      setFeedback('');
+      try {
+        await operation(controller.signal);
+      } catch (error) {
+        if (!controller.signal.aborted && isMounted.current) {
+          if (error instanceof VideoRequestError && error.status === 404) {
+            statusRef.current = null;
+            recoveredUploadId.current = null;
+            setStatus(null);
+            setIsStatusUnknown(false);
+            try {
+              localStorage.removeItem(recoveryKey);
+            } catch {
+              /* A confirmed missing session cannot be resumed. */
+            }
+            setFeedback('This upload no longer exists. Choose a video to start a new upload.');
+          } else {
+            setIsStatusUnknown(true);
+            setFeedback(
+              error instanceof Error ? error.message : 'Check upload status before continuing.',
+            );
+          }
+        }
+      } finally {
+        // Cancel can replace this controller. A settled old request must not clear the new operation.
+        if (operationController.current === controller) {
+          operationController.current = null;
+          if (isMounted.current) {
+            setIsBusy(false);
+            setIsCheckingFile(false);
+          }
+        }
+      }
+    },
+    [recoveryKey],
+  );
+
+  const refreshStatus = useCallback(
+    async (uploadId: string, signal: AbortSignal) => {
+      const upload = await getUploadStatus(projectId, uploadId, signal);
+      signal.throwIfAborted();
+      saveStatus(upload);
+      setIsStatusUnknown(false);
+      if (upload.state === 'READY') {
+        await refreshVideosRef.current();
+        setFeedback(upload.assetAvailable ? 'Video added.' : 'This video has been deleted.');
+      } else if (upload.error) setFeedback(upload.error.message);
+      return upload;
+    },
+    [projectId, saveStatus],
+  );
+
+  useEffect(() => {
+    isMounted.current = true;
+    let uploadId: string | undefined;
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem(recoveryKey) ?? 'null');
+      if (
+        stored &&
+        typeof stored === 'object' &&
+        'version' in stored &&
+        stored.version === 1 &&
+        'uploadId' in stored &&
+        isUuid(stored.uploadId)
+      )
+        uploadId = stored.uploadId;
+    } catch {
+      /* Browser storage is optional; it never gates viewing published assets. */
+    }
+    if (uploadId) recoveredUploadId.current = uploadId;
+    let isActive = true;
+    const recoveryId = uploadId;
+    if (recoveryId)
+      queueMicrotask(() => {
+        if (isActive)
+          void runOperation(async (signal) => {
+            await refreshStatus(recoveryId, signal);
+          });
+      });
+    return () => {
+      isActive = false;
+      isMounted.current = false;
+      operationController.current?.abort();
+      operationController.current = null;
+    };
+  }, [recoveryKey, refreshStatus, runOperation]);
+
+  const checkStatus = useCallback(
+    () =>
+      runOperation(async (signal) => {
+        const uploadId = statusRef.current?.uploadId ?? recoveredUploadId.current;
+        if (uploadId) await refreshStatus(uploadId, signal);
+        else {
+          await refreshVideosRef.current();
+          setIsStatusUnknown(false);
+          setFeedback(
+            'Videos refreshed. Review the list before starting again. An unconfirmed session expires automatically.',
+          );
+        }
+      }),
+    [runOperation, refreshStatus],
+  );
+
+  useEffect(() => {
+    if (status?.state !== 'PROCESSING' || isBusy || isStatusUnknown) return;
+    const checkWhenVisible = () => {
+      if (document.visibilityState === 'visible') void checkStatus();
+    };
+    const timer = setTimeout(checkWhenVisible, STATUS_POLL_INTERVAL_MS);
+    document.addEventListener('visibilitychange', checkWhenVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', checkWhenVisible);
+    };
+  }, [status, isBusy, isStatusUnknown, checkStatus]);
+
+  async function uploadVideo(file: File): Promise<void> {
+    try {
+      validateVideoFile(file);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Check your video file.');
+      return;
+    }
+    await runOperation(async (signal) => {
+      let upload = statusRef.current
+        ? await refreshStatus(statusRef.current.uploadId, signal)
+        : null;
+      if (upload && !isResumableUpload(upload.state)) return;
+      setIsCheckingFile(true);
+      const hash = await calculateFileSha256(file);
+      signal.throwIfAborted();
+      setIsCheckingFile(false);
+      if (upload && (upload.fileSizeBytes !== file.size || upload.expectedSha256 !== hash)) {
+        setFeedback('This is a different file. Select the original video to resume.');
+        return;
+      }
+      if (!upload) {
+        const response = await requestVideoResponse(
+          projectUploadsUrl(projectId),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileSizeBytes: file.size,
+              mimeType: 'video/mp4',
+              expectedSha256: hash,
+            }),
+          },
+          signal,
+        );
+        upload = parseUploadStatus(await response.json(), projectId);
+        signal.throwIfAborted();
+        saveStatus(upload);
+      }
+      const { uploadId } = upload;
+      // Serialize progress snapshots so a slower response cannot move confirmed progress backwards.
+      let progressRefresh = Promise.resolve();
+      try {
+        await sendMissingParts(projectId, upload, file, signal, () => {
+          progressRefresh = progressRefresh.then(async () => {
+            await refreshStatus(uploadId, signal);
+          });
+          return progressRefresh;
+        });
+      } catch (error) {
+        await refreshStatus(uploadId, signal);
+        throw error;
+      }
+      await requestVideoResponse(
+        `${projectUploadsUrl(projectId, uploadId)}/complete`,
+        { method: 'POST' },
+        signal,
+      );
+      await refreshStatus(uploadId, signal);
     });
   }
-  async function finish() {await run(async signal=>{
-    if(!current.current) return;
-    const active=await reconcile(current.current.uploadId,signal);
-    if(!resumable(active)) return;
-    await request(`${uploadsPath(project,active.uploadId)}/complete`,{method:'POST'},signal);await reconcile(active.uploadId,signal);
-  });}
-  async function cancel() {
-    if(!current.current) return;
-    const id=current.current.uploadId;
-    operation.current?.abort();operation.current=null;
-    await run(async signal=>{await request(uploadsPath(project,id),{method:'DELETE'},signal);await reconcile(id,signal);setMessage('Upload canceled.');});
+
+  async function finishUpload(): Promise<void> {
+    await runOperation(async (signal) => {
+      if (!statusRef.current) return;
+      const upload = await refreshStatus(statusRef.current.uploadId, signal);
+      if (!isResumableUpload(upload.state)) return;
+      await requestVideoResponse(
+        `${projectUploadsUrl(projectId, upload.uploadId)}/complete`,
+        { method: 'POST' },
+        signal,
+      );
+      await refreshStatus(upload.uploadId, signal);
+    });
   }
-  function assetDeleted(assetId: string) {
-    if(current.current?.state==='READY' && current.current.asset?.id===assetId) {
-      remember({...current.current,assetAvailable:false,asset:null});setMessage('This video has been deleted.');
+
+  async function cancelUpload(): Promise<void> {
+    if (!statusRef.current) return;
+    const { uploadId } = statusRef.current;
+    operationController.current?.abort();
+    operationController.current = null;
+    await runOperation(async (signal) => {
+      await requestVideoResponse(
+        projectUploadsUrl(projectId, uploadId),
+        { method: 'DELETE' },
+        signal,
+      );
+      await refreshStatus(uploadId, signal);
+      setFeedback('Upload canceled.');
+    });
+  }
+
+  function markAssetDeleted(assetId: string): void {
+    if (statusRef.current?.state === 'READY' && statusRef.current.asset?.id === assetId) {
+      saveStatus({ ...statusRef.current, assetAvailable: false, asset: null });
+      setFeedback('This video has been deleted.');
     }
   }
-  function dismiss() {
-    if(busy) return;setTask(null);current.current=null;recovered.current=null;setMessage('');setUnknown(false);
-    try {localStorage.removeItem(key);} catch { /* Only recovery metadata is stored. */ }
+
+  function dismissUpload(): void {
+    if (isBusy) return;
+    setStatus(null);
+    statusRef.current = null;
+    recoveredUploadId.current = null;
+    setFeedback('');
+    setIsStatusUnknown(false);
+    try {
+      localStorage.removeItem(recoveryKey);
+    } catch {
+      /* Dismiss still succeeds when browser storage is unavailable. */
+    }
   }
-  return {task,busy,checking,unknown,message,upload,check,finish,cancel,dismiss,assetDeleted};
+
+  return {
+    status,
+    isBusy,
+    isCheckingFile,
+    isStatusUnknown,
+    feedback,
+    uploadVideo,
+    checkStatus,
+    finishUpload,
+    cancelUpload,
+    dismissUpload,
+    markAssetDeleted,
+  };
 }

@@ -1,24 +1,32 @@
-import { getProjectMedia, ProjectAssetsApiError } from '@/features/links/link-api.server';
 import { notFound } from 'next/navigation';
-import { getProjectPhotos, PhotoApiError } from '@/features/photos/photo-api';
-import type { ProjectPhotos } from '@/features/photos/photo-types';
-import { ProjectPhotoQuery } from '@/features/photos/photo-query';
+
+import { ProjectAssetsQuery } from '@/features/project-assets/project-assets-query';
+import type { ProjectAssets } from '@/features/project-assets/project-assets-types';
+import {
+  getProjectAssets,
+  ProjectAssetsApiError,
+} from '@/features/project-assets/project-assets.server';
+import { isUuid } from '@/lib/validation';
 
 export default async function Page({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId: rawId } = await params;
   const projectId = rawId.toLowerCase();
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(projectId)) notFound();
-
-  let data: ProjectPhotos;
-  let media: Awaited<ReturnType<typeof getProjectMedia>>;
+  if (!isUuid(projectId)) notFound();
+  let assets: ProjectAssets;
   try {
-    const result = await Promise.all([getProjectPhotos(projectId), getProjectMedia(projectId)]);
-    data = result[0];
-    media = result[1];
+    assets = await getProjectAssets(projectId);
   } catch (error) {
-    if ((error instanceof PhotoApiError || error instanceof ProjectAssetsApiError) && (error.status === 400 || error.status === 404)) notFound();
-    // A failed query belongs in the route's error boundary, never an empty collection.
+    if (error instanceof ProjectAssetsApiError && (error.status === 400 || error.status === 404))
+      notFound();
+    // Failed reads belong in the route boundary, never a misleading empty collection.
     throw error;
   }
-  return <ProjectPhotoQuery key={projectId} initialData={data} initialLinks={media.links} initialVideos={media.videos} />;
+  return (
+    <ProjectAssetsQuery
+      key={projectId}
+      initialData={{ project: assets.project, photos: assets.photos }}
+      initialLinks={assets.links}
+      initialVideos={assets.videos}
+    />
+  );
 }

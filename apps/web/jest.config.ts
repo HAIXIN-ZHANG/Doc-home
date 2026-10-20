@@ -12,10 +12,11 @@ const config: Config = {
   watchman: false,
   coverageProvider: 'v8',
   collectCoverageFrom: [
-    'src/features/photos/**/*.{ts,tsx}',
+    'src/features/**/*.{ts,tsx}',
+    'src/components/ui/**/*.{ts,tsx}',
+    'src/lib/**/*.ts',
     '!src/**/*.test.{ts,tsx}',
-    '!src/features/photos/photo-api.ts',
-    '!src/features/photos/photo-layout.tsx',
+    '!src/**/*.server.ts',
   ],
   coverageDirectory: '<rootDir>/coverage',
 };
