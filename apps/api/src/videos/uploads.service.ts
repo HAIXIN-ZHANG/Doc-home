@@ -36,13 +36,16 @@ export class UploadsService {
     }
   }
   async get(projectId: string, id: string) {
-    const upload = await this.database.transaction(async manager => {
-      const item = await this.locked(manager, projectId, id); await this.expire(item, manager); return item;
+    return this.database.transaction(async manager => {
+      const item = await this.locked(manager, projectId, id);
+      await this.expire(item, manager);
+      const parts = await manager.find(UploadPart, { where: { uploadId: id } });
+      // Keep publication blocked until the state and acknowledged-part snapshot are read.
+      return this.statusBody(item, parts, manager);
     });
-    return this.statusBody(upload, await this.database.getRepository(UploadPart).findBy({ uploadId: id }));
   }
-  async statusBody(upload: VideoUpload, parts: UploadPart[]) {
-    const asset = upload.state === 'READY' ? await this.database.getRepository(Asset).findOne({ where: { projectId: upload.projectId, type: 'video', file: { uploadId: upload.id } }, relations: { file: true } }) : null;
+  async statusBody(upload: VideoUpload, parts: UploadPart[], manager = this.database.manager) {
+    const asset = upload.state === 'READY' ? await manager.findOne(Asset,{ where: { projectId: upload.projectId, type: 'video', file: { uploadId: upload.id } }, relations: { file: true } }) : null;
     const receivedParts = parts.sort((a,b) => a.partNumber-b.partNumber).map(part => ({ partNumber: part.partNumber, sizeBytes: part.sizeBytes, sha256: part.sha256 }));
     // Terminal cleanup removes manifests; completed transfer remains historically 100%.
     const receivedBytes = upload.state === 'READY' ? upload.sizeBytes : parts.reduce((sum, part) => sum + part.sizeBytes, 0);
@@ -62,7 +65,14 @@ export class UploadsService {
     if (!existing && (!pendingStates.some(state => state === upload.state) || upload.expiresAt.getTime() <= Date.now())) {
       await this.get(projectId, id); throw new ConflictException('Upload no longer accepts parts');
     }
-    if (!existing) await this.storage.putPhoto(key, bytes, 'application/octet-stream');
+    if (!existing) {
+      try { await this.storage.putPhoto(key, bytes, 'application/octet-stream'); }
+      catch (error) {
+        // A timed-out PUT may still have stored bytes; retain its identity for reconciliation.
+        this.logger.warn({ uploadId: id, partNumber, key, event: 'part_storage_write_unconfirmed' });
+        throw error;
+      }
+    }
     let registered = false;
     try {
       return await this.database.transaction(async manager => {

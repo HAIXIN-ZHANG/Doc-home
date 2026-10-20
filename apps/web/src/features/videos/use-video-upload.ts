@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fileHash, getStatus, parseStatus, request, sendMissingParts, uploadsPath, validateVideoFile } from './video-api';
+import { fileHash, getStatus, parseStatus, request, sendMissingParts, uploadsPath, validateVideoFile, VideoRequestError } from './video-api';
 import type { UploadStatus } from './video-api';
 const resumable=(task: UploadStatus) => task.state==='CREATED' || task.state==='UPLOADING';
 export function useVideoUpload(project: string, published: () => Promise<unknown>) {
@@ -19,9 +19,17 @@ export function useVideoUpload(project: string, published: () => Promise<unknown
     if(operation.current) return;
     const controller=new AbortController(); operation.current=controller; setBusy(true); setMessage('');
     try { await work(controller.signal); }
-    catch(error) { if(!controller.signal.aborted && mounted.current) { setUnknown(true); setMessage(error instanceof Error ? error.message : 'Check upload status before continuing.'); } }
+    catch(error) {
+      if(!controller.signal.aborted && mounted.current) {
+        if(error instanceof VideoRequestError && error.status===404) {
+          current.current=null;recovered.current=null;setTask(null);setUnknown(false);
+          try {localStorage.removeItem(key);} catch { /* A confirmed missing session cannot be resumed. */ }
+          setMessage('This upload no longer exists. Choose a video to start a new upload.');
+        } else {setUnknown(true);setMessage(error instanceof Error ? error.message : 'Check upload status before continuing.');}
+      }
+    }
     finally { if(operation.current===controller) { operation.current=null; if(mounted.current) {setBusy(false);setChecking(false);} } }
-  },[]);
+  },[key]);
   const reconcile=useCallback(async (id: string, signal: AbortSignal) => {
     const status=await getStatus(project,id,signal); signal.throwIfAborted(); remember(status); setUnknown(false);
     if(status.state==='READY') { await callback.current(); setMessage(status.assetAvailable?'Video added.':'This video has been deleted.'); }
@@ -34,8 +42,9 @@ export function useVideoUpload(project: string, published: () => Promise<unknown
     try { const stored=JSON.parse(localStorage.getItem(key)??'null') as {version?:number;uploadId?:string}|null; if(stored?.version===1 && /^[a-f0-9-]{36}$/i.test(stored.uploadId??'')) id=stored!.uploadId; }
     catch { /* Missing/blocked browser storage does not block viewing assets. */ }
     if(id) recovered.current=id;
-    if(id) void run(async signal=>{ await reconcile(id!,signal); });
-    return ()=>{mounted.current=false;operation.current?.abort();operation.current=null;};
+    let active=true;
+    if(id) queueMicrotask(()=>{if(active) void run(async signal=>{await reconcile(id!,signal);});});
+    return ()=>{active=false;mounted.current=false;operation.current?.abort();operation.current=null;};
   },[key,reconcile,run]);
   const check=useCallback(()=>run(async signal=>{
     const id=current.current?.uploadId??recovered.current;

@@ -78,7 +78,7 @@ integration('video protocol PostgreSQL/S3Mock',() => {
     expect((await put(id,0,bytes.subarray(0,CHUNK_BYTES))).status).toBe(409);
     await app.get(UploadsService).cleanup();
   });
-  it('serializes cancel/part and cancel/complete races without revival',async () => {
+  it('serializes cancel/complete races without revival',async () => {
     const bytes = Buffer.alloc(10,1), {uploadId:id} = await create(bytes);
     await put(id,0,bytes);
     const results = await Promise.all([fetch(url(id),{method:'DELETE'}),fetch(`${url(id)}/complete`,{method:'POST'})]);
@@ -87,6 +87,40 @@ integration('video protocol PostgreSQL/S3Mock',() => {
     expect(results.map(r=>r.status).filter(s=>s===409)).toHaveLength(1);
     if (status.state === 'PROCESSING') await db.query("UPDATE video_uploads SET state='FAILED' WHERE id=$1",[id]);
     await app.get(UploadsService).cleanup();
+  });
+  it('does not register an in-flight part after cancellation or leave its temporary object',async () => {
+    const bytes=sample(),{uploadId:id}=await create(bytes);
+    const storage=app.get(StorageService),original=storage.putPhoto.bind(storage);
+    let release!:()=>void,entered!:()=>void;
+    const gate=new Promise<void>(resolve=>{release=resolve;}),started=new Promise<void>(resolve=>{entered=resolve;});
+    const write=jest.spyOn(storage,'putPhoto').mockImplementation(async (...args)=>{entered();await gate;return original(...args);});
+    const pending=put(id,0,bytes);
+    try {
+      await started;expect((await fetch(url(id),{method:'DELETE'})).status).toBe(200);
+      release();expect((await pending).status).toBe(409);
+      expect(await status(id)).toMatchObject({state:'CANCELED',asset:null});
+      const rows=await db.query<{count:string}[]>('SELECT count(*)::text AS count FROM upload_parts WHERE upload_id=$1',[id]);expect(rows[0].count).toBe('0');
+      const key=write.mock.calls[0][0];expect(await storage.getPhoto(key,bytes.length)).toBeUndefined();
+    } finally {release();await pending;write.mockRestore();await app.get(UploadsService).cleanup();}
+  });
+  it('serializes simultaneous identical and conflicting PUTs for the same index',async () => {
+    const bytes=sample(),{uploadId:id}=await create(bytes);
+    const identical=await Promise.all([put(id,0,bytes),put(id,0,bytes)]);
+    expect(identical.map(reply=>reply.status).sort()).toEqual([200,201]);
+    const conflicting=Buffer.from(bytes);conflicting[conflicting.length-1]=1;
+    expect((await put(id,0,conflicting)).status).toBe(409);
+    expect(await (await fetch(url(id))).json()).toMatchObject({receivedBytes:bytes.length,receivedParts:[{partNumber:0,sha256:sha256(bytes)}]});
+    await fetch(url(id),{method:'DELETE'});await app.get(UploadsService).cleanup();
+  });
+  it('logs uncertain storage writes without acknowledging a manifest',async () => {
+    const {uploadId:id}=await create(sample()),service=app.get(UploadsService);
+    const write=jest.spyOn(app.get(StorageService),'putPhoto').mockRejectedValueOnce(new Error('PUT reply lost'));
+    const log=jest.spyOn(service.logger,'warn').mockImplementation(()=>{});
+    try {
+      expect((await put(id,0,sample())).status).toBe(500);
+      expect(log).toHaveBeenCalledWith(expect.objectContaining({uploadId:id,partNumber:0,key:expect.stringContaining(`uploads/${id}/parts/`),event:'part_storage_write_unconfirmed'}));
+      expect(await (await fetch(url(id))).json()).toMatchObject({receivedBytes:0,receivedParts:[]});
+    } finally {write.mockRestore();log.mockRestore();await fetch(url(id),{method:'DELETE'});await service.cleanup();}
   });
   it('expires incomplete sessions and rejects late parts',async () => {
     const {uploadId:id} = await create(Buffer.alloc(1)); await db.query("UPDATE video_uploads SET expires_at=now()-interval '1 second' WHERE id=$1",[id]);
