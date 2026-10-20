@@ -1,13 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ProjectPhotoQuery } from './photo-query';
+
 import { deferred, initialData, photo, response } from '../../../test/photo-fixtures';
+import { ProjectAssetsQuery } from './project-assets-query';
 
 const fetchMock = jest.fn<typeof fetch>();
 const originalFetch = globalThis.fetch;
-beforeEach(() => { globalThis.fetch = fetchMock; fetchMock.mockReset(); });
-afterEach(() => { globalThis.fetch = originalFetch; });
+beforeEach(() => {
+  globalThis.fetch = fetchMock;
+  fetchMock.mockReset();
+});
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 const deleteButton = () => screen.getByRole('button', { name: `Delete ${photo.originalName}` });
 const newFile = () => new File(['png content'], 'new.png', { type: 'image/png' });
 function selectFile() {
@@ -17,28 +23,44 @@ function selectFile() {
 describe('Project photo interactions', () => {
   it('uses server initial data without a duplicate GET and cancels without a DELETE', async () => {
     jest.spyOn(window, 'confirm').mockReturnValue(false);
-    const secondPhoto = { ...photo, id: '92772849-3041-4c81-9c8d-25ba55b409fd', originalName: 'second.png' };
-    render(<ProjectPhotoQuery initialData={{ ...initialData, photos: [photo, secondPhoto] }} />);
+    const secondPhoto = {
+      ...photo,
+      id: '92772849-3041-4c81-9c8d-25ba55b409fd',
+      originalName: 'second.png',
+    };
+    render(<ProjectAssetsQuery initialData={{ ...initialData, photos: [photo, secondPhoto] }} />);
     await userEvent.click(deleteButton());
-    expect(window.confirm).toHaveBeenCalledWith(`Delete "${photo.originalName}"? It will be removed from this project.`);
+    expect(window.confirm).toHaveBeenCalledWith(
+      `Delete "${photo.originalName}"? It will be removed from this project.`,
+    );
     expect(window.confirm).not.toHaveBeenCalledWith(expect.stringContaining('cannot be undone'));
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(screen.getByRole('img', { name: photo.originalName })).toHaveAttribute('loading', 'eager');
-    expect(screen.getByRole('img', { name: secondPhoto.originalName })).toHaveAttribute('loading', 'lazy');
+    expect(screen.getByRole('img', { name: photo.originalName })).toHaveAttribute(
+      'loading',
+      'eager',
+    );
+    expect(screen.getByRole('img', { name: secondPhoto.originalName })).toHaveAttribute(
+      'loading',
+      'lazy',
+    );
     expect(deleteButton()).toBeEnabled();
   });
 
   it('keeps the card during deletion and blocks upload until reconciliation finishes', async () => {
     const pending = deferred<Response>();
     jest.spyOn(window, 'confirm').mockReturnValue(true);
-    fetchMock.mockReturnValueOnce(pending.promise).mockResolvedValueOnce(response(200, { ...initialData, photos: [] }));
-    render(<ProjectPhotoQuery initialData={initialData} />);
+    fetchMock
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValueOnce(response(200, { ...initialData, photos: [] }));
+    render(<ProjectAssetsQuery initialData={initialData} />);
     selectFile();
     await userEvent.click(deleteButton());
     expect(deleteButton()).toHaveTextContent('Deleting');
     expect(screen.getByRole('heading', { name: photo.originalName })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Upload photo' })).toBeDisabled();
-    await act(async () => { pending.resolve(response(204)); });
+    await act(async () => {
+      pending.resolve(response(204));
+    });
     await screen.findByText(`Deleted ${photo.originalName}.`);
     expect(screen.queryByRole('heading', { name: photo.originalName })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload photo' })).toBeEnabled();
@@ -48,23 +70,29 @@ describe('Project photo interactions', () => {
     const pending = deferred<Response>();
     const refresh = deferred<Response>();
     fetchMock.mockReturnValueOnce(pending.promise).mockReturnValueOnce(refresh.promise);
-    render(<ProjectPhotoQuery initialData={initialData} />);
+    render(<ProjectAssetsQuery initialData={initialData} />);
     selectFile();
     await userEvent.click(screen.getByRole('button', { name: 'Upload photo' }));
     expect(deleteButton()).toBeDisabled();
-    await act(async () => { pending.resolve(response(201)); });
+    await act(async () => {
+      pending.resolve(response(201));
+    });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(deleteButton()).toBeDisabled();
-    await act(async () => { refresh.resolve(response(200, initialData)); });
+    await act(async () => {
+      refresh.resolve(response(200, initialData));
+    });
     await screen.findByText('Photo uploaded.');
     expect(deleteButton()).toBeEnabled();
   });
 
   it('keeps a card on ambiguous deletion and requires a successful refresh', async () => {
     jest.spyOn(window, 'confirm').mockReturnValue(true);
-    fetchMock.mockRejectedValueOnce(new TypeError('Network lost'))
-      .mockResolvedValueOnce(response(503)).mockResolvedValueOnce(response(200, initialData));
-    render(<ProjectPhotoQuery initialData={initialData} />);
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('Network lost'))
+      .mockResolvedValueOnce(response(503))
+      .mockResolvedValueOnce(response(200, initialData));
+    render(<ProjectAssetsQuery initialData={initialData} />);
     await userEvent.click(deleteButton());
     await screen.findByText(/deletion result could not be confirmed/);
     expect(deleteButton()).toBeDisabled();
@@ -80,18 +108,19 @@ describe('Project photo interactions', () => {
   it('does not restore a confirmed deleted card when the follow-up query fails', async () => {
     jest.spyOn(window, 'confirm').mockReturnValue(true);
     fetchMock.mockResolvedValueOnce(response(204)).mockResolvedValueOnce(response(503));
-    render(<ProjectPhotoQuery initialData={initialData} />);
+    render(<ProjectAssetsQuery initialData={initialData} />);
     await userEvent.click(deleteButton());
     await screen.findByText(/Photo deleted, but the list could not be refreshed/);
     expect(screen.queryByRole('heading', { name: photo.originalName })).not.toBeInTheDocument();
   });
 });
 
-
 describe('Upload validation and recovery', () => {
   it('rejects invalid selection before any request', () => {
-    render(<ProjectPhotoQuery initialData={initialData} />);
-    fireEvent.change(screen.getByLabelText('Choose photo'), { target: { files: [new File(['text'], 'notes.txt', { type: 'text/plain' })] } });
+    render(<ProjectAssetsQuery initialData={initialData} />);
+    fireEvent.change(screen.getByLabelText('Choose photo'), {
+      target: { files: [new File(['text'], 'notes.txt', { type: 'text/plain' })] },
+    });
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a JPG or PNG photo.');
     expect(screen.getByRole('button', { name: 'Upload photo' })).toBeDisabled();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -99,7 +128,7 @@ describe('Upload validation and recovery', () => {
 
   it('preserves the selection after a definite rejection and allows a retry', async () => {
     fetchMock.mockResolvedValueOnce(response(415));
-    render(<ProjectPhotoQuery initialData={initialData} />);
+    render(<ProjectAssetsQuery initialData={initialData} />);
     selectFile();
     await userEvent.click(screen.getByRole('button', { name: 'Upload photo' }));
     await screen.findByText('The file content must be a JPG or PNG photo.');
@@ -109,9 +138,11 @@ describe('Upload validation and recovery', () => {
   });
 
   it('does not retry an uncertain upload and blocks another until refresh succeeds', async () => {
-    fetchMock.mockRejectedValueOnce(new TypeError('Network lost'))
-      .mockResolvedValueOnce(response(503)).mockResolvedValueOnce(response(200, initialData));
-    render(<ProjectPhotoQuery initialData={initialData} />);
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('Network lost'))
+      .mockResolvedValueOnce(response(503))
+      .mockResolvedValueOnce(response(200, initialData));
+    render(<ProjectAssetsQuery initialData={initialData} />);
     selectFile();
     await userEvent.click(screen.getByRole('button', { name: 'Upload photo' }));
     await screen.findByText(/upload result could not be confirmed/);
@@ -128,10 +159,12 @@ describe('Upload validation and recovery', () => {
 
   it('reports confirmed upload separately from refresh failure and clears the selection', async () => {
     fetchMock.mockResolvedValueOnce(response(201)).mockResolvedValueOnce(response(503));
-    render(<ProjectPhotoQuery initialData={initialData} />);
+    render(<ProjectAssetsQuery initialData={initialData} />);
     selectFile();
     await userEvent.click(screen.getByRole('button', { name: 'Upload photo' }));
-    await screen.findByText('Photo uploaded, but the list could not be refreshed. Refresh the photos to see it.');
+    await screen.findByText(
+      'Photo uploaded, but the list could not be refreshed. Refresh the photos to see it.',
+    );
     expect(screen.getByText('No file selected')).toBeVisible();
     expect(screen.getByRole('heading', { name: photo.originalName })).toBeVisible();
     expect(screen.queryByText('No photos yet')).not.toBeInTheDocument();

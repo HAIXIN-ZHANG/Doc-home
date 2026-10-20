@@ -40,6 +40,8 @@ export default defineConfig({
             canvas: { value: '{colors.slate.50}' },
             surface: { value: '{colors.white}' },
             subtle: { value: '{colors.slate.100}' },
+            accentSubtle: { value: '{colors.brand.soft}' },
+            media: { value: '{colors.black}' },
           },
           fg: {
             DEFAULT: { value: '{colors.slate.900}' },
@@ -85,6 +87,46 @@ export default defineConfig({
         },
       },
       recipes: {
+        assetSection: {
+          className: 'asset-section',
+          jsx: ['AssetSection'],
+          staticCss: ['*'],
+          base: { display: 'flex', flexDirection: 'column', minW: '0' },
+          variants: {
+            visual: {
+              surface: {
+                gap: '4',
+                bg: 'bg.surface',
+                borderWidth: '1px',
+                borderColor: 'border',
+                rounded: 'xl',
+                p: { mobile: '4', tablet: '6' },
+              },
+              plain: { gap: { mobile: '6', desktop: '8' } },
+            },
+          },
+          defaultVariants: { visual: 'surface' },
+        },
+        textInput: {
+          className: 'text-input',
+          jsx: ['TextInput'],
+          base: {
+            w: 'full',
+            minW: '0',
+            minH: '11',
+            px: '3',
+            py: '2',
+            borderWidth: '1px',
+            borderColor: 'border',
+            rounded: 'lg',
+            _focusVisible: {
+              outline: '2px solid',
+              outlineColor: 'focus.ring',
+              outlineOffset: '2px',
+            },
+            _disabled: { bg: 'bg.subtle', color: 'fg.muted', cursor: 'not-allowed' },
+          },
+        },
         button: {
           className: 'button',
           jsx: ['Button'],
