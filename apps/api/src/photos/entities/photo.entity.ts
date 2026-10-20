@@ -2,6 +2,7 @@ import {
   Check,
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -44,6 +45,9 @@ export class Photo {
 
   @Column({ name: 'size_bytes', type: 'integer' })
   sizeBytes!: number;
+
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt!: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz', default: () => 'now()' })
   createdAt!: Date;

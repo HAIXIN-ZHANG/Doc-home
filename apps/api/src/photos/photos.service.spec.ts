@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import sharp from 'sharp';
+import { IsNull } from 'typeorm';
 import { PhotosService } from './photos.service.js';
 import { Photo } from './entities/photo.entity.js';
 import { Project } from '../projects/entities/project.entity.js';
@@ -21,7 +22,8 @@ const photos = {
   findOne: jest.fn<(options: unknown) => Promise<Photo | null>>(),
   create: jest.fn<(data: Partial<Photo>) => Photo>(),
   save: jest.fn<(data: Photo) => Promise<Photo>>(),
-  delete: jest.fn<(where: unknown) => Promise<{ affected: number }>>(),
+  update: jest.fn<(where: unknown, changes: unknown) => Promise<{ affected: number }>>(),
+  exists: jest.fn<(options: unknown) => Promise<boolean>>(),
 };
 const storage = {
   putPhoto: jest.fn<StorageService['putPhoto']>(),
@@ -42,7 +44,8 @@ beforeEach(async () => {
   projects.existsBy.mockResolvedValue(true);
   photos.find.mockResolvedValue([photo]);
   photos.findOne.mockResolvedValue(photo);
-  photos.delete.mockResolvedValue({ affected: 1 });
+  photos.update.mockResolvedValue({ affected: 1 });
+  photos.exists.mockResolvedValue(true);
   photos.create.mockImplementation(data => Object.assign(new Photo(), data));
   photos.save.mockImplementation(data => Promise.resolve(Object.assign(data, { createdAt: photo.createdAt })));
   storage.putPhoto.mockResolvedValue(undefined);
@@ -210,42 +213,47 @@ describe('view project photo', () => {
 });
 
 
-describe('delete project photo', () => {
-  it('deletes only the associated record, then cleans up its file', async () => {
+describe('soft-delete project photo', () => {
+  it('hides only the active associated row without reading or deleting storage', async () => {
     await expect(service.deleteProjectPhoto(projectId, photoId)).resolves.toBeUndefined();
-    expect(photos.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { id: photoId, projectId } }));
-    expect(photos.delete).toHaveBeenCalledWith({ id: photoId, projectId });
-    expect(storage.deletePhoto).toHaveBeenCalledWith(photo.storageKey);
-    expect(photos.delete.mock.invocationCallOrder[0]).toBeLessThan(storage.deletePhoto.mock.invocationCallOrder[0]);
-  });
-  it('does not touch files or records when photo is absent or belongs elsewhere', async () => {
-    photos.findOne.mockResolvedValue(null);
-    await expect(service.deleteProjectPhoto(projectId, photoId)).rejects.toMatchObject({ status: 404 });
-    expect(photos.delete).not.toHaveBeenCalled();
+    expect(photos.update).toHaveBeenCalledWith(
+      { id: photoId, projectId, deletedAt: IsNull() },
+      { deletedAt: expect.any(Function) },
+    );
+    expect(photos.exists).not.toHaveBeenCalled();
+    expect(storage.getPhoto).not.toHaveBeenCalled();
     expect(storage.deletePhoto).not.toHaveBeenCalled();
   });
-  it('preserves the file when the metadata lookup fails', async () => {
-    const error = new Error('query failed');
-    photos.findOne.mockRejectedValue(error);
+  it('treats an already deleted or concurrently deleted same-project row as success', async () => {
+    photos.update.mockResolvedValue({ affected: 0 });
+    await expect(service.deleteProjectPhoto(projectId, photoId)).resolves.toBeUndefined();
+    expect(photos.exists).toHaveBeenCalledWith({ where: { id: photoId, projectId }, withDeleted: true });
+    expect(storage.deletePhoto).not.toHaveBeenCalled();
+  });
+  it('returns 404 when no row belongs to the supplied project, including tombstones', async () => {
+    photos.update.mockResolvedValue({ affected: 0 });
+    photos.exists.mockResolvedValue(false);
+    await expect(service.deleteProjectPhoto(projectId, photoId)).rejects.toMatchObject({ status: 404 });
+    expect(photos.exists).toHaveBeenCalledWith({ where: { id: photoId, projectId }, withDeleted: true });
+    expect(storage.deletePhoto).not.toHaveBeenCalled();
+  });
+  it('preserves bytes and propagates an unconfirmed database update', async () => {
+    const error = new Error('update result unknown');
+    photos.update.mockRejectedValue(error);
+    await expect(service.deleteProjectPhoto(projectId, photoId)).rejects.toBe(error);
+    expect(photos.exists).not.toHaveBeenCalled();
+    expect(storage.deletePhoto).not.toHaveBeenCalled();
+  });
+  it('does not hide a failed tombstone lookup behind successful deletion', async () => {
+    const error = new Error('lookup failed');
+    photos.update.mockResolvedValue({ affected: 0 });
+    photos.exists.mockRejectedValue(error);
     await expect(service.deleteProjectPhoto(projectId, photoId)).rejects.toBe(error);
     expect(storage.deletePhoto).not.toHaveBeenCalled();
   });
-  it('preserves the file when database deletion fails', async () => {
-    const error = new Error('delete failed');
-    photos.delete.mockRejectedValue(error);
-    await expect(service.deleteProjectPhoto(projectId, photoId)).rejects.toBe(error);
+  it('does not depend on object storage being available', async () => {
+    storage.deletePhoto.mockRejectedValue(new Error('storage unavailable'));
+    await expect(service.deleteProjectPhoto(projectId, photoId)).resolves.toBeUndefined();
     expect(storage.deletePhoto).not.toHaveBeenCalled();
-  });
-  it('handles a concurrent record deletion without deleting bytes again', async () => {
-    photos.delete.mockResolvedValue({ affected: 0 });
-    await expect(service.deleteProjectPhoto(projectId, photoId)).rejects.toMatchObject({ status: 404 });
-    expect(storage.deletePhoto).not.toHaveBeenCalled();
-  });
-  it('logs failed file cleanup but keeps the committed deletion successful', async () => {
-    storage.deletePhoto.mockRejectedValue(new Error('PRIVATE_STORAGE_MESSAGE'));
-    const log = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-    await expect(service.deleteProjectPhoto(projectId, photoId, 'delete-request')).resolves.toBeUndefined();
-    expect(log).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'delete-request', storageKey: photo.storageKey }));
-    expect(JSON.stringify(log.mock.calls)).not.toContain('PRIVATE_STORAGE_MESSAGE');
   });
 });

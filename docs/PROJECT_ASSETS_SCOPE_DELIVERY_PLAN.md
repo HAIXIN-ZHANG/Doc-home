@@ -2,7 +2,7 @@
 
 ## Status and source of truth
 
-The approved expansion is **Links + Photos + Videos with soft deletion**. The committed application baseline remains the photo workflow. This first increment changes documentation only: new APIs, soft deletion and video processing below are targets, not delivered capabilities. Existing uncommitted application drafts have not been validated and do not change that status.
+The approved expansion is **Links + Photos + Videos with soft deletion**. Increments 1–2 are complete: scope/contracts and the photo soft-delete workflow. Links, the common asset model and video processing remain planned. Uncommitted URL/video drafts are not delivered capabilities.
 
 The assessment's follow-up asks for at least two asset types. Photos plus Links reach that checkpoint; Videos add the explicitly chosen resumable upload, asynchronous finalization and queryable status. Keep the scope small around one seeded project. Do not extend project editing, documents or custom fields.
 
@@ -11,7 +11,7 @@ Use [Asset contracts](ASSET_CONTRACTS.md) for the target data/API/lifecycle rule
 | Area | Committed baseline | Approved target / deferred boundary |
 | --- | --- | --- |
 | Assets | JPEG/PNG upload, list, original/resized view and delete | Add external links and MP4 video; preserve photo routes |
-| Lifecycle | Photo record deletion followed by best-effort object cleanup | Soft deletion for all three types; retain completed originals; restore/purge deferred |
+| Lifecycle | Atomic photo soft deletion, active-read filtering and retained originals | Extend the same behavior to Links/Videos; restore/purge deferred |
 | Persistence | TypeORM/PostgreSQL metadata, S3Mock original files | Keep this stack; PostgreSQL upload sessions/manifests and S3 temporary parts |
 | UI | Responsive photo page with loading/empty/error/reconciliation feedback | One project view with three sections, upload status/recovery, media view and deletion feedback |
 | Quality | Existing Jest/RTL, local verification records and CI | Relevant tests per increment, then repeatable integration/real-media checks |
@@ -31,7 +31,7 @@ Work one increment at a time. Each implementation commit must build, include its
 | 6. `feat: add video upload and viewing UI` | Video selection/checking/progress/finalizing/recovery, task row, player, errors/delete and responsive mixed-assets layout | Complete browser workflow; dialog close differs from cancel; preserve photo/link usability |
 | 7. `test: verify mixed asset workflows and document delivery` | Repeatable PostgreSQL/S3Mock integration checks, real image/video browser checks, final README/scope evidence and necessary CI adjustments | Record commands/results and remaining gaps; no deferred feature expansion |
 
-Commit 3 is the first complete two-type checkpoint. Its migration work is deliberately explicit: a common API must not leave two writable photo metadata stores or discard existing data. The current combined soft-delete/link/video migration draft must be split and reworked to match these boundaries; it is not a release migration yet.
+Commit 3 is the first complete two-type checkpoint. Its migration work is deliberately explicit: a common API must not leave two writable photo metadata stores or discard existing data. The photo migration is now separate and registered. The combined soft-delete/link/video draft is still unregistered and must be reworked before its owning increments; it is not a release migration.
 
 A local commit does not imply push, PR update, reviewer contact or deployment. Those actions are outside this increment.
 
@@ -78,8 +78,8 @@ Figma references and running-app screenshots are separate evidence. The app capt
 
 ## Verification and completion
 
-The existing README verification table describes the photo baseline and past checks, not the planned mixed-asset work or the unvalidated dirty worktree. This documentation-only commit does not rerun app tests or claim new runtime behavior.
+The README distinguishes this increment's unit/component, real PostgreSQL/S3Mock and build results from earlier photo-browser checks. Soft-delete integration now has a committed opt-in Jest suite and an isolated Docker runner; no normal application database was migrated for this verification. It is not mixed-asset or browser E2E evidence.
 
-Before each implementation commit, run its relevant tests and checks. Commit 2 must replace hard-delete test expectations; commit 3 must verify migration/backward compatibility on disposable data. Video protocol/finalizer tests belong with commits 4–5, frontend behavior tests with commit 6. Commit 7 adds cross-boundary evidence and real H.264/AAC landscape/portrait playback, seeking and deletion checks.
+Before each implementation commit, run its relevant tests and checks. Commit 2 replaced hard-delete test expectations and verified old-data preservation, idempotency, object retention and guarded rollback on disposable data. Commit 3 must verify its common-model migration/backward compatibility on disposable data. Video protocol/finalizer tests belong with commits 4–5, frontend behavior tests with commit 6. Commit 7 adds cross-boundary evidence and real H.264/AAC landscape/portrait playback, seeking and deletion checks.
 
 Keep existing records/object data intact. Do not reset volumes, install dependencies or access cloud services as an implicit part of these steps. Review schema changes and document rollback limits before running them. Future authorization, audit, retention periods, restore UI, production AWS behavior, multi-instance processing and deployment remain explicitly incomplete.

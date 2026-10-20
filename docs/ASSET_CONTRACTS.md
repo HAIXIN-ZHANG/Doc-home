@@ -1,6 +1,6 @@
 # Mixed asset contracts — implementation target
 
-Status: approved design target for the next increments, **not an implemented API reference**. The committed baseline is the photo workflow documented in [README](../README.md). Uncommitted models/migrations are drafts, not the source of truth. The [delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) defines the seven commit boundaries.
+Status: approved mixed-asset design target, **not a complete implemented API reference**. Photo soft deletion (increment 2) is implemented and checked; the common asset model, Links and Videos remain targets. Use [README](../README.md) for actual available behavior. Uncommitted models/migrations are drafts, not the source of truth. The [delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) defines the seven commit boundaries.
 
 This document supersedes earlier SQLite/local-disk proposals. Keep Next.js/React/Panda, NestJS/TypeORM, PostgreSQL and private S3-compatible storage (Adobe S3Mock locally). No storage replacement, extra service or new dependency is required by this contract.
 
@@ -17,7 +17,7 @@ This document supersedes earlier SQLite/local-disk proposals. Keep Next.js/React
 
 Use explicit SQL checks for scalar constraints and transactions for cross-table rules: exactly one matching detail per asset; photo/video cannot use LinkDetail; a published video has a unique upload association. Foreign keys alone do not enforce the type/detail relationship. Do not introduce a generic repository framework or a single creation DTO with every type's fields optional.
 
-**Compatibility and migration:** commit 2 adds photo soft deletion to the existing photo table. Commit 3 introduces the common asset model and migrates photo metadata into Asset/FileDetail, preserving IDs, timestamps, project association, deletion markers and object keys. No object is re-uploaded or deleted. Existing photo endpoints and DTOs remain compatible through the photo service. The legacy photo table must not remain a second writable source of truth after migration. Validate the metadata copy and compatibility on disposable data before applying it to existing data; document rollback limits for assets created after migration.
+**Compatibility and migration:** commit 2 adds photo soft deletion to the existing photo table, with a rollback guard when tombstones exist. Commit 3 introduces the common asset model and migrates photo metadata into Asset/FileDetail, preserving IDs, timestamps, project association, deletion markers and object keys. No object is re-uploaded or deleted. Existing photo endpoints and DTOs remain compatible through the photo service. The legacy photo table must not remain a second writable source of truth after migration. Validate the metadata copy and compatibility on disposable data before applying it to existing data; document rollback limits for assets created after migration.
 
 The prematurely drafted `assets` table containing only links/videos and nullable URL/file columns is **not** the chosen final schema. Rework that uncommitted draft in its owning increment. New video tables belong to commits 4–5, not the photo soft-delete migration.
 

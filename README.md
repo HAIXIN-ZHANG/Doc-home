@@ -4,7 +4,7 @@ A project photo-management app built for the Sync Technologies take-home. Open a
 
 **Stack:** Next.js / React / Panda CSS, NestJS, TypeORM / PostgreSQL, AWS SDK / Adobe S3Mock. Application and test code use TypeScript.
 
-**Delivery status:** the committed implementation is the photo workflow described below. The approved next scope adds Links, Videos and soft deletion in [seven increments](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#seven-commit-boundaries). Their [target data and API contracts](docs/ASSET_CONTRACTS.md) are design commitments, not currently available endpoints. Documentation of planned behavior does not validate any uncommitted implementation drafts.
+**Delivery status:** the photo workflow now uses soft deletion: deleted photos disappear from normal reads while their records and original files remain. Links and Videos are still planned in the remaining [delivery increments](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#seven-commit-boundaries). The [mixed-asset contracts](docs/ASSET_CONTRACTS.md) describe that target; uncommitted URL/video drafts are not delivered features.
 
 ## Run locally
 
@@ -66,7 +66,7 @@ Use `http://localhost:3001` directly, or prefix these paths with `/api` through 
 | GET | `/projects/:projectId/photos` | 200: project summary and photo list, newest first |
 | POST | `/projects/:projectId/photos` | 201: uploaded photo metadata |
 | GET | `/projects/:projectId/photos/:photoId/content` | 200: original or resized image bytes |
-| DELETE | `/projects/:projectId/photos/:photoId` | 204: no response body |
+| DELETE | `/projects/:projectId/photos/:photoId` | 204: soft-deleted; no response body |
 
 Demo project ID: `39f7c890-a5aa-4a74-8a3a-7fba28ac58b6`.
 
@@ -78,6 +78,12 @@ Demo project ID: `39f7c890-a5aa-4a74-8a3a-7fba28ac58b6`.
 curl -F 'file=@/absolute/path/to/photo.png' \
   http://localhost:3001/projects/39f7c890-a5aa-4a74-8a3a-7fba28ac58b6/photos
 ```
+
+### Photo deletion
+
+DELETE atomically sets `deleted_at` only while it is null. Repeating the same-project request, including concurrent requests, returns 204 without replacing the first deletion time. Missing/wrong-project IDs return 404. No object-store call is required for deletion.
+
+Normal lists, originals and resized content queries exclude deleted rows; new content requests return 404. The SQL row, original object key and exact stored bytes remain. Already downloaded bytes cannot be recalled. There is no restore/Undo API, automatic purge or retention-period promise in this increment; retained originals continue to use space.
 
 ### Optional image resizing
 
@@ -118,15 +124,27 @@ pnpm build
 
 Unit/component tests need no Docker or `.env`. Optional coverage commands are `pnpm --filter api test:coverage` and `pnpm --filter web test:coverage`; reports go to each app's ignored `coverage/` directory.
 
-| Photo-baseline verification (recorded previously; not rerun for this docs increment) | Recorded result |
+| Verification | Evidence for this increment |
 | --- | --- |
-| API Jest | 9 suites / 121 cases: handlers, service rules, validation, storage boundaries, errors/logging, configuration and health |
-| Web Jest + React Testing Library | 1 suite / 9 cases: mutation coordination, validation and failure/recovery states |
-| Typecheck, lint and production builds | Both applications passed locally |
-| Clean local setup | Frozen install from cached packages, new database migration/seed and `pnpm dev` passed in an isolated checkout/storage project |
-| Real local API/browser checks | JPG/PNG upload, format/size rejection, read/resize, delete; persistence across app and storage-container recreation; Chrome at 1440/834/390/320 widths |
+| API Jest | 10 suites / 125 cases passed; 7 opt-in integration cases are skipped by the ordinary unit command |
+| Web Jest + React Testing Library | 1 suite / 9 cases passed, including deletion confirmation, pending/failed deletion and list reconciliation |
+| PostgreSQL + S3Mock integration | 7 cases passed via `pnpm --filter api test:integration`: additive migration preserves old rows/keys; upload/resize; wrong-project access; concurrent/repeated deletion and first timestamp; deleted read filtering; retained object bytes; guarded migration rollback/reapply |
+| Typecheck and lint | Both applications passed locally |
+| API production build | Passed (`pnpm build` completed the API build before the Web build failed) |
+| Web production build | Default Turbopack build was blocked by this executor's local-port restriction (`Operation not permitted`), including a retry. Webpack fallback passed with `NEXT_TELEMETRY_DISABLED=1 pnpm --filter web exec next build --webpack`; the default configuration is unchanged |
+| Earlier baseline checks | Clean cached install/migration/seed/startup and Chrome at 1440/834/390/320 widths were recorded before this increment; not rerun as soft-delete browser checks |
 
-Runtime/browser checks used temporary scripts and isolated storage ports, not a committed integration/E2E suite. Repeated seed and container recreation preserved photo records and identical original bytes. Safari/Firefox, full accessibility, high concurrency and real AWS behaviour remain unverified.
+The soft-delete integration suite runs the real Nest HTTP routes, PostgreSQL migrations/queries and S3Mock bytes. It is not a browser E2E suite or real AWS verification. This increment did not rerun manual browser, cross-browser, full accessibility, high concurrency or restart-persistence checks.
+
+### Repeatable soft-delete integration check
+
+```bash
+pnpm --filter api test:integration
+```
+
+Requires a running local Docker engine, Bash/curl and the existing local `postgres:17-alpine` and `adobe/s3mock:5.2.3` images. The script never pulls images. It creates dedicated disposable containers on random loopback ports without user volumes, waits for readiness, runs the opt-in Jest suite, then removes only its own containers and their temporary anonymous volumes, including on failure. It does not migrate/reset the normal Compose database or use its bucket.
+
+Ordinary unit CI does not start Docker and skips these seven cases. The integration test requires both `PHOTO_INTEGRATION_DATABASE_URL` and `PHOTO_INTEGRATION_S3_ENDPOINT`; the script supplies them. If running the Jest file directly, use only an empty disposable local database named `doc_home_soft_delete*` and a dedicated local S3Mock bucket `doc-home-soft-delete-test`: the suite deliberately exercises migration rollback on its fixtures.
 
 [GitHub Actions](.github/workflows/ci.yml) runs typecheck, lint, Jest and build on branch pushes and PRs into `main`. App-only changes select that app; public photo DTOs, shared/root configuration and lockfile changes select both. Docs-only changes skip application jobs. New branches, manual runs and unavailable comparison history check both.
 
@@ -136,10 +154,10 @@ PR selection uses the **whole PR diff**, so a frontend-only follow-up can still 
 
 Use `pnpm --filter api migration:show`, `migration:run` and `seed`. These commands build first and load the API environment file. Schema synchronization and automatic startup migrations are disabled.
 
-For a new schema change, update the Entity, add/register a new migration with reviewed `up`/`down` SQL, and check it on disposable data. `migration:revert` undoes the last migration; reverting the initial migration **drops both business tables**.
+For a new schema change, update the Entity, add/register a new migration with reviewed `up`/`down` SQL, and check it on disposable data. Apply the new photo soft-delete migration before starting an existing installation; startup does not apply it automatically. Its `down` refuses to remove the marker while deleted rows exist, because doing so would expose them again. It locks the table while checking; do not treat rollback as an application restore feature. `migration:revert` undoes the last migration; reverting the initial migration **drops both business tables**.
 
 ## Deliberate limits
 
-The committed baseline is a photo-only demonstration with one seeded project. Links, videos and soft deletion are approved next increments, not delivered by this documentation change. Documents, custom fields, authentication, pagination and cloud deployment remain outside the selected expansion. Project association checks are **not user authorization**.
+The implemented scope remains a photo-only demonstration with one seeded project and soft deletion. Links and videos remain planned, not delivered by this increment. Documents, custom fields, authentication, pagination and cloud deployment remain outside the selected expansion. Project association checks are **not user authorization**.
 
-Uploads and deletes are not automatically retried. The UI waits for confirmed success and requires list reconciliation when a result is uncertain. SQL and object storage do not share a transaction. A metadata-save error retains the uploaded file and logs IDs for reconciliation, because the transaction may already have committed. Delete cleanup is best effort. Both paths can leave orphan files. Content-signature validation is not full decoding or malware scanning. See the [scope document](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) for design choices and next steps.
+Uploads and deletes are not automatically retried. The UI waits for confirmed success and requires list reconciliation when a result is uncertain. SQL and object storage do not share a transaction. A metadata-save error retains the uploaded file and logs IDs for reconciliation, because the transaction may already have committed. Soft deletion deliberately retains originals; there is no deletion cleanup or purge job. Failed upload metadata saves can still leave orphan objects for manual reconciliation. Content-signature validation is not full decoding or malware scanning. See the [scope document](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) for design choices and next steps.

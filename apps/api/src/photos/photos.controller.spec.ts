@@ -54,12 +54,10 @@ describe('PhotosController (four endpoint handlers)', () => {
     await expect(controller.getProjectPhoto(projectId, photoId, {}, asExpress)).rejects.toBe(error);
     expect(response.setHeader).not.toHaveBeenCalled();
   });
-  it('delegates deletion with its project, photo and server request ID', async () => {
-    const { response, asExpress } = httpResponse();
-    response.locals.requestId = 'delete-request';
+  it('delegates deletion with its project and photo IDs', async () => {
     photos.deleteProjectPhoto.mockResolvedValue(undefined);
-    await expect(controller.deleteProjectPhoto(projectId, photoId, asExpress)).resolves.toBeUndefined();
-    expect(photos.deleteProjectPhoto).toHaveBeenCalledWith(projectId, photoId, 'delete-request');
+    await expect(controller.deleteProjectPhoto(projectId, photoId)).resolves.toBeUndefined();
+    expect(photos.deleteProjectPhoto).toHaveBeenCalledWith(projectId, photoId);
   });
   it('does not accept a non-string request ID from response locals', async () => {
     const { response, asExpress } = httpResponse();
