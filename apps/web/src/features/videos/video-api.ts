@@ -39,12 +39,15 @@ export function parseStatus(value: unknown, project: string): UploadStatus {
   if(item.asset) parseVideo(item.asset,project);
   return item;
 }
+export class VideoRequestError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
 export async function request(path: string, init: RequestInit = {}, signal?: AbortSignal): Promise<Response> {
   const response=await fetch(path,{...init,cache:'no-store',signal:AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(35_000)])});
   if(!response.ok) {
     let message='The request could not be confirmed. Check upload status before retrying.';
     try { const body=await response.json() as {message?:unknown}; if(typeof body.message==='string') message=body.message; } catch { /* Keep a useful fallback for proxy failures. */ }
-    throw new Error(message);
+    throw new VideoRequestError(message,response.status);
   }
   return response;
 }

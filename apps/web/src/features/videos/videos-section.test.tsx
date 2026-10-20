@@ -52,6 +52,15 @@ describe('video UI and protocol',()=>{
     mount();await userEvent.click(await screen.findByRole('button',{name:'Check upload status'}));await screen.findByLabelText('Video upload task');
     expect(fetchMock.mock.calls[1][0]).toBe(`/api/projects/${project}/uploads/${id}`);
   });
+  it('clears a confirmed missing recovery session so a new upload is possible',async()=>{
+    localStorage.setItem(`doc-home:video-upload:v1:${project}`,JSON.stringify({version:1,uploadId:id}));
+    fetchMock.mockResolvedValueOnce(response({message:'Upload not found'},404));
+    mount();await screen.findByText('This upload no longer exists. Choose a video to start a new upload.');
+    expect(localStorage.getItem(`doc-home:video-upload:v1:${project}`)).toBeNull();
+    await userEvent.click(screen.getByRole('button',{name:'+ Add video'}));choose();
+    expect(screen.getByRole('button',{name:'Upload video'})).toBeEnabled();
+    expect(screen.queryByRole('button',{name:'Check upload status'})).not.toBeInTheDocument();
+  });
   it('keeps a failed PUT resumable and checks status before an explicit retry',async()=>{
     fetchMock.mockResolvedValueOnce(response(base,201)).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(response(base));
     mount();await userEvent.click(screen.getByRole('button',{name:'+ Add video'}));choose();await userEvent.click(screen.getByRole('button',{name:'Upload video'}));
