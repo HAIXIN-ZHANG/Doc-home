@@ -15,6 +15,7 @@ import { AssetsController } from './assets.controller.js';
 import { AddPhotoSoftDelete1792454400001 } from '../database/migrations/1792454400001-add-photo-soft-delete.js';
 import sharp from 'sharp';
 import { createDatabaseOptions } from '../database/database-options.js';
+import { NormalizeAssetsAndLinks1792540800000 } from '../database/migrations/1792540800000-normalize-assets-and-links.js';
 import { CreateProjectsAndPhotos1792368000000 } from '../database/migrations/1792368000000-create-projects-and-photos.js';
 import { HttpExceptionFilter } from '../http/http-exception.filter.js';
 import { requestLog } from '../http/request-log.middleware.js';
@@ -96,7 +97,7 @@ integration('project assets against PostgreSQL and S3Mock', () => {
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [deletedPhotoId, projectId, 'deleted.png', deletedKey, 'image/png', original.length, createdAt, deletedAt]);
       await s3.send(new PutObjectCommand({ Bucket: bucket, Key: deletedKey, Body: original, ContentType: 'image/png' }));
     } finally { await previous.destroy(); }
-    database = new DataSource(createDatabaseOptions(databaseUrl));
+    database = new DataSource({ ...createDatabaseOptions(databaseUrl), migrations: [CreateProjectsAndPhotos1792368000000, AddPhotoSoftDelete1792454400001, NormalizeAssetsAndLinks1792540800000] });
     await database.initialize();
     await database.runMigrations();
     await startApp();

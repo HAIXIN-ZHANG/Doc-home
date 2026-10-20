@@ -1,3 +1,4 @@
+import { VideosModule } from './videos/videos.module.js';
 import { AssetsModule } from './assets/assets.module.js';
 import { AssetsController } from './assets/assets.controller.js';
 import { Module } from '@nestjs/common';
@@ -18,6 +19,7 @@ import { StorageModule } from './storage/storage.module.js';
     PhotosModule,
     AssetsModule,
     StorageModule,
+    VideosModule,
   ],
   controllers: [AppController, AssetsController],
   providers: [HealthService],

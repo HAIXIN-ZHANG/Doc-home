@@ -4,7 +4,7 @@ A project links-and-photos app built for the Sync Technologies take-home. Open a
 
 **Stack:** Next.js / React / Panda CSS, NestJS, TypeORM / PostgreSQL, AWS SDK / Adobe S3Mock. Application and test code use TypeScript.
 
-**Delivery status:** increments 1–3 are implemented: scope/contracts, photo soft deletion, and the shared asset model with a complete Links workflow. Videos remain planned in the remaining [delivery increments](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#seven-commit-boundaries). [Asset contracts](docs/ASSET_CONTRACTS.md) distinguish that target from current APIs; uncommitted video drafts are not delivered features.
+**Delivery status:** increments 1–4 are implemented: scope/contracts, photo soft deletion, and the shared asset model with a complete Links workflow. Video session creation, raw 5 MiB parts, persisted status, cancel/expiry and bounded admission are implemented. Video finalization/playback and UI remain planned in the remaining [delivery increments](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#seven-commit-boundaries). [Asset contracts](docs/ASSET_CONTRACTS.md) distinguish that target from current APIs; uncommitted video drafts are not delivered features.
 
 ## Run locally
 
@@ -173,3 +173,7 @@ For a new schema change, update the Entity, add/register a new migration with re
 The implemented scope is one seeded project with Links, Photos and soft deletion. Videos remain planned, not delivered by this increment. Documents, custom fields, authentication, pagination and cloud deployment remain outside the selected expansion. Link editing, batch creation, automatic deduplication and site reachability/preview fetching are also deferred. Project association checks are **not user authorization**.
 
 Uploads and deletes are not automatically retried. The UI waits for confirmed success and requires list reconciliation when a result is uncertain. SQL and object storage do not share a transaction. A metadata-save error retains the uploaded file and logs IDs for reconciliation, because the transaction may already have committed. Soft deletion deliberately retains originals; there is no deletion cleanup or purge job. Failed upload metadata saves can still leave orphan objects for manual reconciliation. Content-signature validation is not full decoding or malware scanning. See the [scope document](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) for design choices and next steps.
+
+### Increment 4 verification
+
+`pnpm --filter api test`: 154 passed, 24 opt-in integration cases skipped. `pnpm --filter api test:integration`: 20 existing asset cases and 4 video protocol cases passed against disposable PostgreSQL/S3Mock. The video cases cover out-of-order/idempotent/conflicting parts, exact progress, application restart, project isolation, cancel/complete races, expiry, admission and actual receive size. Parts do not publish playable assets in this increment.

@@ -1,3 +1,6 @@
+import { VideoUpload } from '../assets/upload.entity.js';
+import { UploadPart } from '../videos/upload-part.entity.js';
+import { AddVideoUploads1792627200000 } from './migrations/1792627200000-add-video-uploads.js';
 import type { DataSourceOptions } from 'typeorm';
 import { validateDatabaseUrl } from '../config/environment.js';
 import { Asset } from '../assets/asset.entity.js';
@@ -13,8 +16,8 @@ export function createDatabaseOptions(databaseUrl: unknown): DataSourceOptions {
   return {
     type: 'postgres',
     url: validateDatabaseUrl(databaseUrl),
-    entities: [Project, Asset, FileDetail, LinkDetail],
-    migrations: [CreateProjectsAndPhotos1792368000000, AddPhotoSoftDelete1792454400001, NormalizeAssetsAndLinks1792540800000],
+    entities: [Project, Asset, FileDetail, LinkDetail, VideoUpload, UploadPart],
+    migrations: [CreateProjectsAndPhotos1792368000000, AddPhotoSoftDelete1792454400001, NormalizeAssetsAndLinks1792540800000, AddVideoUploads1792627200000],
     synchronize: false,
     migrationsRun: false,
     migrationsTransactionMode: 'all',

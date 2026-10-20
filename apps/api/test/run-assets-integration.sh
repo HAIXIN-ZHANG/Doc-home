@@ -48,3 +48,4 @@ if [[ "$ready" != true ]]; then
   exit 1
 fi
 pnpm test:unit --runTestsByPath src/assets/project-assets.integration.spec.ts
+pnpm test:unit --runTestsByPath src/videos/videos.integration.spec.ts
