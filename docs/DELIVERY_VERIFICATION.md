@@ -15,7 +15,7 @@ Personal learning/commit notes are outside this repository. This file records re
 | `pnpm typecheck` | Both applications passed |
 | `pnpm lint` | Both applications passed |
 | `pnpm --filter api test` | 12 suites, 157 passed; 35 opt-in integration cases skipped |
-| `pnpm --filter web test` | 3 suites, 32 passed |
+| `pnpm --filter web test` | 4 suites, 36 passed |
 | `VIDEO_TEST_FILE=/absolute/sample.mp4 pnpm --filter api test:integration` | 20 original asset + 15 video cases passed with real disposable PostgreSQL/S3Mock |
 | `pnpm --filter api build` | Passed |
 | Webpack production build | Passed; used by the local E2E runner. The default project build command remains unchanged |
@@ -60,3 +60,13 @@ One API/worker instance, 20 MiB MP4, bounded merge buffers and finite container 
 ## AI assistance
 
 Implementation, test scaffolding and documentation used AI assistance. The commands above were executed locally and their results recorded. Candidate understanding and reviewer sign-off should be assessed separately from automated test evidence.
+
+## Readability and boundary review
+
+A follow-up review retained the HTTP contracts and database schema while clarifying names and ownership: generic S3 object operations; video entities in `videos`; direct worker storage injection; explicit upload status responses; named processing limits; and separate claim/assemble/publish/failure operations. The frontend now composes one initial mixed response in `project-assets`, validates it before adaptation, and uses shared section/input/feedback recipes and components. Four additional composition tests protect the compatible photo shape and reject malformed/mismatched/unsupported responses.
+
+The README is now an entry point for setup/configuration/API/checks; [architecture](ARCHITECTURE.md) records actual UI/module boundaries and consistency trade-offs. Coverage configuration includes assets/videos and the UI primitives rather than reporting only the earlier photo slice. No coverage percentage or threshold is claimed.
+
+Current follow-up checks passed: 157 API unit cases, 36 web cases, 35 PostgreSQL/S3Mock integration cases and four Chrome E2E workflows; both typechecks/lints and API/Webpack builds passed. The existing local images briefly failed an initial Docker image lookup; inspection confirmed the cached images and a retry passed without downloading anything.
+
+Before the follow-up, all 34 existing commits were inspected for structure and manifest/lockfile specifier consistency, with no mismatches or tracked environment/build/media paths found. The eight mixed-asset commits were additionally exported to isolated source snapshots and each passed API/web typechecks and unit/component tests using the existing installed dependencies. This is not a frozen reinstall or a claim of rerunning every historical emulator/browser/build check. Original history was retained.
