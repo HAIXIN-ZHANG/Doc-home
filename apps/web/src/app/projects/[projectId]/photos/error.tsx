@@ -11,7 +11,7 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
   const [isPending, startTransition] = useTransition();
   return (
     <PhotoLayout>
-      <h1 className={css({ textStyle: 'pageTitle' })}>We couldn’t load these photos</h1>
+      <h1 className={css({ textStyle: 'pageTitle' })}>We couldn’t load the project assets</h1>
       <p role="alert" className={css({ color: 'fg.muted' })}>The request failed. Please try again.</p>
       <div>
         <Button visual="secondary" disabled={isPending} onClick={() => startTransition(() => {

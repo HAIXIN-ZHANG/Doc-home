@@ -2,7 +2,7 @@ import { Readable } from 'node:stream';
 import type { Express, Response } from 'express';
 import type {} from 'multer';
 import { jest } from '@jest/globals';
-import { Photo } from '../src/photos/entities/photo.entity.js';
+import type { StoredPhoto } from '../src/assets/asset-response.js';
 import { Project } from '../src/projects/entities/project.entity.js';
 
 export const projectId = '39f7c890-a5aa-4a74-8a3a-7fba28ac58b6';
@@ -10,11 +10,11 @@ export const photoId = 'fbfa3548-f0ab-45c6-86c7-bf489145fc75';
 export const project = Object.assign(new Project(), {
   id: projectId, name: 'Demo project', address: 'Demo address', createdAt: new Date('2026-10-19T00:00:00Z'),
 });
-export const photo = Object.assign(new Photo(), {
+export const photo: StoredPhoto = {
   id: photoId, projectId, originalName: 'photo.png', mimeType: 'image/png' as const,
   sizeBytes: 68, storageKey: `projects/${projectId}/photos/${photoId}.png`,
   createdAt: new Date('2026-10-19T00:00:00Z'),
-});
+};
 export const publicPhoto = {
   id: photoId, originalName: 'photo.png', mimeType: 'image/png' as const, sizeBytes: 68,
   createdAt: '2026-10-19T00:00:00.000Z',

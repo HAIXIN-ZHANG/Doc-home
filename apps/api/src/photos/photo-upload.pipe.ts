@@ -8,7 +8,7 @@ import {
 import type { PipeTransform } from '@nestjs/common';
 import type { Express } from 'express';
 import type {} from 'multer';
-import type { PhotoMimeType } from './entities/photo.entity.js';
+import type { PhotoMimeType } from '../assets/file-detail.entity.js';
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 

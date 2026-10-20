@@ -4,9 +4,9 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import sharp from 'sharp';
-import { IsNull } from 'typeorm';
+import { AssetsService } from '../assets/assets.service.js';
+import type { StoredPhoto } from '../assets/asset-response.js';
 import { PhotosService } from './photos.service.js';
-import { Photo } from './entities/photo.entity.js';
 import { Project } from '../projects/entities/project.entity.js';
 import { StorageService } from '../storage/storage.service.js';
 import { MAX_PHOTO_BYTES } from './photo-upload.pipe.js';
@@ -18,12 +18,10 @@ const projects = {
   existsBy: jest.fn<(where: unknown) => Promise<boolean>>(),
 };
 const photos = {
-  find: jest.fn<(options: unknown) => Promise<Photo[]>>(),
-  findOne: jest.fn<(options: unknown) => Promise<Photo | null>>(),
-  create: jest.fn<(data: Partial<Photo>) => Photo>(),
-  save: jest.fn<(data: Photo) => Promise<Photo>>(),
-  update: jest.fn<(where: unknown, changes: unknown) => Promise<{ affected: number }>>(),
-  exists: jest.fn<(options: unknown) => Promise<boolean>>(),
+  findPhotos: jest.fn<AssetsService['findPhotos']>(),
+  findPhoto: jest.fn<AssetsService['findPhoto']>(),
+  savePhoto: jest.fn<AssetsService['savePhoto']>(),
+  softDelete: jest.fn<AssetsService['softDelete']>(),
 };
 const storage = {
   putPhoto: jest.fn<StorageService['putPhoto']>(),
@@ -42,19 +40,17 @@ beforeEach(async () => {
   jest.resetAllMocks();
   projects.findOne.mockResolvedValue(project);
   projects.existsBy.mockResolvedValue(true);
-  photos.find.mockResolvedValue([photo]);
-  photos.findOne.mockResolvedValue(photo);
-  photos.update.mockResolvedValue({ affected: 1 });
-  photos.exists.mockResolvedValue(true);
-  photos.create.mockImplementation(data => Object.assign(new Photo(), data));
-  photos.save.mockImplementation(data => Promise.resolve(Object.assign(data, { createdAt: photo.createdAt })));
+  photos.findPhotos.mockResolvedValue([photo]);
+  photos.findPhoto.mockResolvedValue(photo);
+  photos.softDelete.mockResolvedValue(undefined);
+  photos.savePhoto.mockImplementation(data => Promise.resolve(Object.assign(data, { createdAt: photo.createdAt })));
   storage.putPhoto.mockResolvedValue(undefined);
   storage.deletePhoto.mockResolvedValue(undefined);
   storage.getPhoto.mockResolvedValue(source);
   module = await Test.createTestingModule({ providers: [
     PhotosService,
     { provide: getRepositoryToken(Project), useValue: projects },
-    { provide: getRepositoryToken(Photo), useValue: photos },
+    { provide: AssetsService, useValue: photos },
     { provide: StorageService, useValue: storage },
   ] }).compile();
   service = module.get(PhotosService);
@@ -67,19 +63,17 @@ describe('query project photos', () => {
       project: { id: projectId, name: project.name, address: project.address }, photos: [publicPhoto],
     });
     expect(projects.findOne).toHaveBeenCalledWith({ where: { id: projectId }, select: { id: true, name: true, address: true } });
-    expect(photos.find).toHaveBeenCalledWith(expect.objectContaining({
-      where: { projectId }, order: { createdAt: 'DESC', id: 'DESC' },
-    }));
+    expect(photos.findPhotos).toHaveBeenCalledWith(projectId);
     expect(storage.getPhoto).not.toHaveBeenCalled();
   });
   it('returns a successful empty list', async () => {
-    photos.find.mockResolvedValue([]);
+    photos.findPhotos.mockResolvedValue([]);
     await expect(service.getProjectPhotos(projectId)).resolves.toMatchObject({ photos: [] });
   });
   it('returns 404 before querying photos when project is missing', async () => {
     projects.findOne.mockResolvedValue(null);
     await expect(service.getProjectPhotos(projectId)).rejects.toMatchObject({ status: 404 });
-    expect(photos.find).not.toHaveBeenCalled();
+    expect(photos.findPhotos).not.toHaveBeenCalled();
   });
   it('propagates a project query failure', async () => {
     const error = new Error('project query failed');
@@ -88,7 +82,7 @@ describe('query project photos', () => {
   });
   it('does not hide a photo query failure behind an empty array', async () => {
     const error = new Error('photo query failed');
-    photos.find.mockRejectedValue(error);
+    photos.findPhotos.mockRejectedValue(error);
     await expect(service.getProjectPhotos(projectId)).rejects.toBe(error);
   });
 });
@@ -97,10 +91,10 @@ describe('upload project photo', () => {
   it('generates a key, writes bytes before metadata and returns public fields', async () => {
     const result = await service.uploadProjectPhoto(projectId, upload);
     expect(storage.putPhoto).toHaveBeenCalledWith(`projects/${projectId}/photos/${result.id}.png`, png, 'image/png');
-    expect(photos.save).toHaveBeenCalledWith(expect.objectContaining({
+    expect(photos.savePhoto).toHaveBeenCalledWith(expect.objectContaining({
       id: result.id, projectId, sizeBytes: png.length, storageKey: `projects/${projectId}/photos/${result.id}.png`,
     }));
-    expect(storage.putPhoto.mock.invocationCallOrder[0]).toBeLessThan(photos.save.mock.invocationCallOrder[0]);
+    expect(storage.putPhoto.mock.invocationCallOrder[0]).toBeLessThan(photos.savePhoto.mock.invocationCallOrder[0]);
     expect(Object.keys(result).sort()).toEqual(Object.keys(publicPhoto).sort());
     expect(result.createdAt).toBe(publicPhoto.createdAt);
   });
@@ -118,7 +112,7 @@ describe('upload project photo', () => {
     projects.existsBy.mockResolvedValue(false);
     await expect(service.uploadProjectPhoto(projectId, upload)).rejects.toMatchObject({ status: 404 });
     expect(storage.putPhoto).not.toHaveBeenCalled();
-    expect(photos.save).not.toHaveBeenCalled();
+    expect(photos.savePhoto).not.toHaveBeenCalled();
   });
   it('propagates project lookup errors before writing bytes', async () => {
     const error = new Error('query failed');
@@ -130,19 +124,19 @@ describe('upload project photo', () => {
     const error = new Error('upload failed');
     storage.putPhoto.mockRejectedValue(error);
     await expect(service.uploadProjectPhoto(projectId, upload)).rejects.toBe(error);
-    expect(photos.save).not.toHaveBeenCalled();
+    expect(photos.savePhoto).not.toHaveBeenCalled();
   });
   it('retains bytes after a save error because the commit outcome may be unknown', async () => {
     const error = new Error('save failed');
-    photos.save.mockRejectedValue(error);
+    photos.savePhoto.mockRejectedValue(error);
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     await expect(service.uploadProjectPhoto(projectId, upload)).rejects.toBe(error);
     expect(storage.deletePhoto).not.toHaveBeenCalled();
   });
   it('retains bytes if the save committed but its acknowledgement was lost', async () => {
-    let committed: Photo | undefined;
+    let committed: StoredPhoto | undefined;
     const error = new Error('acknowledgement lost');
-    photos.save.mockImplementationOnce(record => {
+    photos.savePhoto.mockImplementationOnce(record => {
       committed = Object.assign(record, { createdAt: photo.createdAt });
       return Promise.reject(error);
     });
@@ -160,13 +154,13 @@ describe('upload project photo', () => {
 describe('view project photo', () => {
   it('checks both IDs and returns original byte identity without a transform', async () => {
     const result = await service.getProjectPhoto(projectId, photoId, {});
-    expect(photos.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { id: photoId, projectId } }));
+    expect(photos.findPhoto).toHaveBeenCalledWith(projectId, photoId);
     expect(storage.getPhoto).toHaveBeenCalledWith(photo.storageKey, MAX_PHOTO_BYTES);
     expect(result.buffer).toBe(source);
     expect(result.mimeType).toBe('image/png');
   });
   it('does not read storage for a missing or wrong-project photo', async () => {
-    photos.findOne.mockResolvedValue(null);
+    photos.findPhoto.mockResolvedValue(null);
     await expect(service.getProjectPhoto(projectId, photoId, {})).rejects.toMatchObject({ status: 404 });
     expect(storage.getPhoto).not.toHaveBeenCalled();
   });
@@ -183,7 +177,7 @@ describe('view project photo', () => {
   });
   it('propagates database lookup failure', async () => {
     const error = new Error('database unavailable');
-    photos.findOne.mockRejectedValue(error);
+    photos.findPhoto.mockRejectedValue(error);
     await expect(service.getProjectPhoto(projectId, photoId, {})).rejects.toBe(error);
   });
   it.each([
@@ -200,7 +194,7 @@ describe('view project photo', () => {
     expect(await sharp(result.buffer).metadata()).toMatchObject({ width: 2048, height: 51 });
   });
   it('keeps JPEG output format and applies EXIF orientation', async () => {
-    photos.findOne.mockResolvedValue(Object.assign(new Photo(), photo, { mimeType: 'image/jpeg' }));
+    photos.findPhoto.mockResolvedValue({ ...photo, mimeType: 'image/jpeg' });
     storage.getPhoto.mockResolvedValue(await sharp(source).jpeg().withMetadata({ orientation: 6 }).toBuffer());
     const result = await service.getProjectPhoto(projectId, photoId, { w: 300 });
     expect(result.mimeType).toBe('image/jpeg');
@@ -213,47 +207,16 @@ describe('view project photo', () => {
 });
 
 
-describe('soft-delete project photo', () => {
-  it('hides only the active associated row without reading or deleting storage', async () => {
+describe('soft-delete photo compatibility route', () => {
+  it('delegates to the shared lifecycle with an explicit photo type', async () => {
     await expect(service.deleteProjectPhoto(projectId, photoId)).resolves.toBeUndefined();
-    expect(photos.update).toHaveBeenCalledWith(
-      { id: photoId, projectId, deletedAt: IsNull() },
-      { deletedAt: expect.any(Function) },
-    );
-    expect(photos.exists).not.toHaveBeenCalled();
-    expect(storage.getPhoto).not.toHaveBeenCalled();
+    expect(photos.softDelete).toHaveBeenCalledWith(projectId, photoId, 'photo');
     expect(storage.deletePhoto).not.toHaveBeenCalled();
   });
-  it('treats an already deleted or concurrently deleted same-project row as success', async () => {
-    photos.update.mockResolvedValue({ affected: 0 });
-    await expect(service.deleteProjectPhoto(projectId, photoId)).resolves.toBeUndefined();
-    expect(photos.exists).toHaveBeenCalledWith({ where: { id: photoId, projectId }, withDeleted: true });
-    expect(storage.deletePhoto).not.toHaveBeenCalled();
-  });
-  it('returns 404 when no row belongs to the supplied project, including tombstones', async () => {
-    photos.update.mockResolvedValue({ affected: 0 });
-    photos.exists.mockResolvedValue(false);
-    await expect(service.deleteProjectPhoto(projectId, photoId)).rejects.toMatchObject({ status: 404 });
-    expect(photos.exists).toHaveBeenCalledWith({ where: { id: photoId, projectId }, withDeleted: true });
-    expect(storage.deletePhoto).not.toHaveBeenCalled();
-  });
-  it('preserves bytes and propagates an unconfirmed database update', async () => {
+  it('propagates a failed deletion without accessing object storage', async () => {
     const error = new Error('update result unknown');
-    photos.update.mockRejectedValue(error);
+    photos.softDelete.mockRejectedValue(error);
     await expect(service.deleteProjectPhoto(projectId, photoId)).rejects.toBe(error);
-    expect(photos.exists).not.toHaveBeenCalled();
-    expect(storage.deletePhoto).not.toHaveBeenCalled();
-  });
-  it('does not hide a failed tombstone lookup behind successful deletion', async () => {
-    const error = new Error('lookup failed');
-    photos.update.mockResolvedValue({ affected: 0 });
-    photos.exists.mockRejectedValue(error);
-    await expect(service.deleteProjectPhoto(projectId, photoId)).rejects.toBe(error);
-    expect(storage.deletePhoto).not.toHaveBeenCalled();
-  });
-  it('does not depend on object storage being available', async () => {
-    storage.deletePhoto.mockRejectedValue(new Error('storage unavailable'));
-    await expect(service.deleteProjectPhoto(projectId, photoId)).resolves.toBeUndefined();
     expect(storage.deletePhoto).not.toHaveBeenCalled();
   });
 });

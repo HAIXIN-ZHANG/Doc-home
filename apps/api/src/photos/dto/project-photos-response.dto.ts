@@ -1,4 +1,4 @@
-import type { PhotoMimeType } from '../entities/photo.entity.js';
+import type { PhotoMimeType } from '../../assets/file-detail.entity.js';
 
 export interface ProjectResponseDto {
   id: string;

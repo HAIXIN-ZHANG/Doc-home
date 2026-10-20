@@ -1,3 +1,5 @@
+import { AssetsModule } from './assets/assets.module.js';
+import { AssetsController } from './assets/assets.controller.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller.js';
@@ -14,9 +16,10 @@ import { StorageModule } from './storage/storage.module.js';
     DatabaseModule,
     ProjectsModule,
     PhotosModule,
+    AssetsModule,
     StorageModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, AssetsController],
   providers: [HealthService],
 })
 export class AppModule {}
