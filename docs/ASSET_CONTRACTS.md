@@ -1,6 +1,6 @@
 # Mixed asset contracts — implementation target
 
-Status: approved mixed-asset design target, **not a complete implemented API reference**. Increments 2–3 implement and check shared photo/link soft deletion, the common asset model, Links, mixed listing and photo compatibility. Videos, upload/session fields and processing remain targets. Use [README](../README.md) for actual available behavior. Uncommitted models/migrations are drafts, not the source of truth. The [delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) defines the seven commit boundaries.
+Status: approved mixed-asset design target, **not a complete implemented API reference**. Increments 2–4 implement and check shared photo/link soft deletion, the common asset model, Links, mixed listing and photo compatibility. Video sessions and manifests are now persisted; finalization, video content and frontend remain targets for increments 5–6. Use [README](../README.md) for actual available behavior. Uncommitted models/migrations are drafts, not the source of truth. The [delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) defines the seven commit boundaries.
 
 This document supersedes earlier SQLite/local-disk proposals. Keep Next.js/React/Panda, NestJS/TypeORM, PostgreSQL and private S3-compatible storage (Adobe S3Mock locally). No storage replacement, extra service or new dependency is required by this contract.
 

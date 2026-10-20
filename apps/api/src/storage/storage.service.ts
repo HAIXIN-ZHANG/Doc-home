@@ -37,7 +37,7 @@ export class StorageService implements OnModuleDestroy {
   }
 
   // Keep the original bytes; optional resizing belongs to reads, not stored variants.
-  async putPhoto(key: string, buffer: Buffer, contentType: 'image/jpeg' | 'image/png'): Promise<void> {
+  async putPhoto(key: string, buffer: Buffer, contentType: string): Promise<void> {
     await this.client.send(new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
