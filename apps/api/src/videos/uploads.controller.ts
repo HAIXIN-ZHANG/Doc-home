@@ -6,7 +6,9 @@ import { CHUNK_BYTES } from './video-policy.js';
 @Controller('projects/:projectId/uploads')
 export class UploadsController {
   constructor(private readonly uploads: UploadsService) {}
-  @Post() create(@Param('projectId', ParseUUIDPipe) project: string, @Body() dto: CreateUploadDto) { return this.uploads.create(project,dto); }
+  @Post() async create(@Param('projectId', ParseUUIDPipe) project: string, @Body() dto: CreateUploadDto, @Res({passthrough:true}) response: Response) {
+    try { return await this.uploads.create(project,dto); } catch(error) { if(error instanceof HttpException && error.getStatus()===429) response.setHeader('Retry-After','2'); throw error; }
+  }
   @Get(':uploadId') status(@Param('projectId', ParseUUIDPipe) project: string, @Param('uploadId', ParseUUIDPipe) id: string) { return this.uploads.get(project,id); }
   @Delete(':uploadId') cancel(@Param('projectId', ParseUUIDPipe) project: string, @Param('uploadId', ParseUUIDPipe) id: string) { return this.uploads.cancel(project,id); }
   @Post(':uploadId/complete') async complete(@Param('projectId', ParseUUIDPipe) project: string, @Param('uploadId', ParseUUIDPipe) id: string, @Res({passthrough:true}) response: Response) {

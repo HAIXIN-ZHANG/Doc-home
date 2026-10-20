@@ -1,3 +1,4 @@
+import { StorageModule } from '../storage/storage.module.js';
 import { randomUUID } from 'node:crypto';
 import { setTimeout } from 'node:timers/promises';
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
@@ -15,7 +16,6 @@ import { AssetsController } from './assets.controller.js';
 import { AddPhotoSoftDelete1792454400001 } from '../database/migrations/1792454400001-add-photo-soft-delete.js';
 import sharp from 'sharp';
 import { createDatabaseOptions } from '../database/database-options.js';
-import { NormalizeAssetsAndLinks1792540800000 } from '../database/migrations/1792540800000-normalize-assets-and-links.js';
 import { CreateProjectsAndPhotos1792368000000 } from '../database/migrations/1792368000000-create-projects-and-photos.js';
 import { HttpExceptionFilter } from '../http/http-exception.filter.js';
 import { requestLog } from '../http/request-log.middleware.js';
@@ -51,7 +51,7 @@ async function startApp() {
         S3_ACCESS_KEY_ID: 'local-test', S3_SECRET_ACCESS_KEY: 'local-test',
       })] }),
       TypeOrmModule.forRoot(createDatabaseOptions(databaseUrl)),
-      PhotosModule, AssetsModule,
+      PhotosModule, AssetsModule, StorageModule,
     ], controllers: [AssetsController] }).compile();
     app = module.createNestApplication({ logger: false });
     app.use(requestLog);
@@ -97,7 +97,7 @@ integration('project assets against PostgreSQL and S3Mock', () => {
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [deletedPhotoId, projectId, 'deleted.png', deletedKey, 'image/png', original.length, createdAt, deletedAt]);
       await s3.send(new PutObjectCommand({ Bucket: bucket, Key: deletedKey, Body: original, ContentType: 'image/png' }));
     } finally { await previous.destroy(); }
-    database = new DataSource({ ...createDatabaseOptions(databaseUrl), migrations: [CreateProjectsAndPhotos1792368000000, AddPhotoSoftDelete1792454400001, NormalizeAssetsAndLinks1792540800000] });
+    database = new DataSource(createDatabaseOptions(databaseUrl));
     await database.initialize();
     await database.runMigrations();
     await startApp();
@@ -180,6 +180,8 @@ integration('project assets against PostgreSQL and S3Mock', () => {
   });
 
   it('refuses a rollback that would silently expose deleted records', async () => {
+    await database.undoLastMigration(); // video publication
+    await database.undoLastMigration(); // empty upload schema
     await database.undoLastMigration(); // common model -> legacy photo table, retaining tombstones
     // Inspect raw legacy rows because the application metadata is now Asset/FileDetail.
     const rows = await database.query<{ deleted_at: Date }[]>('SELECT deleted_at FROM photos WHERE id=$1', [photoId]);
@@ -195,6 +197,8 @@ integration('project assets against PostgreSQL and S3Mock', () => {
     app = undefined;
     // Test-only SQL fixture change; this does not add an application restore endpoint.
     await database.query('UPDATE assets SET deleted_at=NULL');
+    await database.undoLastMigration(); // video publication
+    await database.undoLastMigration(); // empty upload schema
     await database.undoLastMigration();
     await database.undoLastMigration();
     const columns = await database.query<{ column_name: string }[]>(
@@ -268,7 +272,10 @@ integration('project assets against PostgreSQL and S3Mock', () => {
   });
 
   it('refuses a downgrade that cannot represent retained link records', async () => {
+    await database.undoLastMigration();
+    await database.undoLastMigration();
     await expect(database.undoLastMigration()).rejects.toThrow('Cannot revert asset migration while non-photo assets exist');
+    await database.runMigrations();
     expect((await fetch(`${origin}/projects/${projectId}/assets`)).status).toBe(200);
     expect((await database.query<{ name: string | null }[]>("SELECT to_regclass('public.photos')::text AS name"))[0].name).toBeNull();
   });

@@ -5,7 +5,7 @@ import { FileDetail } from './file-detail.entity.js';
 import { LinkDetail } from './link-detail.entity.js';
 
 @Entity('assets')
-@Check('CHK_assets_type', `"type" IN ('photo', 'link')`)
+@Check('CHK_assets_type', `"type" IN ('photo', 'link', 'video')`)
 @Check('CHK_assets_name', 'length(btrim("name")) > 0')
 @Index('IDX_assets_project_created_id', ['projectId', 'createdAt', 'id'])
 export class Asset {
@@ -13,7 +13,7 @@ export class Asset {
   @Column({ name: 'project_id', type: 'uuid' }) projectId!: string;
   @ManyToOne(() => Project, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'project_id' }) project!: Relation<Project>;
-  @Column({ type: 'varchar', length: 12 }) type!: 'photo' | 'link';
+  @Column({ type: 'varchar', length: 12 }) type!: 'photo' | 'link' | 'video';
   @Column({ type: 'varchar', length: 2048 }) name!: string;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true }) deletedAt!: Date | null;

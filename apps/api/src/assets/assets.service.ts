@@ -60,6 +60,10 @@ export class AssetsService {
     return asset ? this.toPhoto(asset) : null;
   }
 
+  async findVideo(projectId: string, id: string): Promise<Asset | null> {
+    return this.assets.findOne({ where: { id, projectId, type: 'video' }, relations: { file: true } });
+  }
+
   async savePhoto(photo: Omit<StoredPhoto, 'createdAt'>): Promise<StoredPhoto> {
     return this.database.transaction(async manager => {
       const asset = await manager.save(Asset, manager.create(Asset, {
@@ -81,9 +85,9 @@ export class AssetsService {
   }
 
   private toPhoto(asset: Asset): StoredPhoto {
-    if (!asset.file || asset.link) throw new InternalServerErrorException('Asset details are inconsistent');
+    if (!asset.file || asset.link || !['image/jpeg','image/png'].includes(asset.file.mimeType)) throw new InternalServerErrorException('Asset details are inconsistent');
     return { id: asset.id, projectId: asset.projectId, originalName: asset.name, createdAt: asset.createdAt,
-      storageKey: asset.file.storageKey, mimeType: asset.file.mimeType, sizeBytes: asset.file.sizeBytes };
+      storageKey: asset.file.storageKey, mimeType: asset.file.mimeType as StoredPhoto['mimeType'], sizeBytes: asset.file.sizeBytes };
   }
 
   private toResponse(asset: Asset): AssetResponse {
@@ -91,6 +95,10 @@ export class AssetsService {
     if (asset.type === 'link') {
       if (!asset.link || asset.file) throw new InternalServerErrorException('Asset details are inconsistent');
       return { ...base, type: 'link', url: asset.link.url };
+    }
+    if (asset.type === 'video') {
+      if (!asset.file || asset.link || asset.file.mimeType !== 'video/mp4') throw new InternalServerErrorException('Asset details are inconsistent');
+      return { ...base, type: 'video', mimeType: 'video/mp4', sizeBytes: asset.file.sizeBytes, contentUrl: `/projects/${asset.projectId}/assets/${asset.id}/content` };
     }
     const photo = this.toPhoto(asset);
     return { ...base, type: 'photo', mimeType: photo.mimeType, sizeBytes: photo.sizeBytes,

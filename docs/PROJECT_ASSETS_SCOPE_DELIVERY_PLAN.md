@@ -2,7 +2,7 @@
 
 ## Status and source of truth
 
-The approved expansion is **Links + Photos + Videos with soft deletion**. Increments 1–4 are complete: scope/contracts, photo soft deletion, and the common asset model with Links. Persisted video sessions/parts/status/cancellation are implemented and tested; video processing and UI remain planned. Uncommitted URL/video drafts are not delivered capabilities.
+The approved expansion is **Links + Photos + Videos with soft deletion**. Increments 1–5 are complete: scope/contracts, photo soft deletion, and the common asset model with Links. Persisted video sessions/parts/status/cancellation are implemented and tested; video processing/Range/soft deletion are implemented and tested; UI remains planned. Uncommitted URL/video drafts are not delivered capabilities.
 
 The assessment's follow-up asks for at least two asset types. Photos plus Links reach that checkpoint; Videos add the explicitly chosen resumable upload, asynchronous finalization and queryable status. Keep the scope small around one seeded project. Do not extend project editing, documents or custom fields.
 

@@ -1,6 +1,6 @@
 # Mixed asset contracts — implementation target
 
-Status: approved mixed-asset design target, **not a complete implemented API reference**. Increments 2–4 implement and check shared photo/link soft deletion, the common asset model, Links, mixed listing and photo compatibility. Video sessions and manifests are now persisted; finalization, video content and frontend remain targets for increments 5–6. Use [README](../README.md) for actual available behavior. Uncommitted models/migrations are drafts, not the source of truth. The [delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) defines the seven commit boundaries.
+Status: approved mixed-asset design target, **not a complete implemented API reference**. Increments 2–5 implement and check shared photo/link soft deletion, the common asset model, Links, mixed listing and photo compatibility. Video sessions and manifests are now persisted; finalization, publication and Range content are implemented; frontend remains the increment 6 target. Use [README](../README.md) for actual available behavior. Uncommitted models/migrations are drafts, not the source of truth. The [delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) defines the seven commit boundaries.
 
 This document supersedes earlier SQLite/local-disk proposals. Keep Next.js/React/Panda, NestJS/TypeORM, PostgreSQL and private S3-compatible storage (Adobe S3Mock locally). No storage replacement, extra service or new dependency is required by this contract.
 
@@ -19,7 +19,7 @@ Use explicit SQL checks for scalar constraints and transactions for cross-table 
 
 **Compatibility and migration:** commit 2 adds photo soft deletion to the existing photo table, with a rollback guard when tombstones exist. Commit 3 introduces the common asset model and migrates photo metadata into Asset/FileDetail, preserving IDs, timestamps, project association, deletion markers and object keys. No object is re-uploaded or deleted. Existing photo endpoints and DTOs remain compatible through the photo service. The legacy photo table must not remain a second writable source of truth after migration. Validate the metadata copy and compatibility on disposable data before applying it to existing data; document rollback limits for assets created after migration.
 
-The earlier nullable URL/file `assets` draft has been replaced with the normalized common model. Only photo/link types are enabled now; video/session fields are introduced in their later increments. New video tables belong to commits 4–5, not the photo soft-delete migration.
+The earlier nullable URL/file `assets` draft has been replaced with the normalized common model. Photo/link/video types are enabled now; video/session fields are introduced by dedicated increments 4–5 migrations. New video tables belong to commits 4–5, not the photo soft-delete migration.
 
 ### Public responses
 

@@ -37,17 +37,17 @@ export class StorageService implements OnModuleDestroy {
   }
 
   // Keep the original bytes; optional resizing belongs to reads, not stored variants.
-  async putPhoto(key: string, buffer: Buffer, contentType: string): Promise<void> {
+  async putPhoto(key: string, buffer: Buffer, contentType: string, attemptSignal?: AbortSignal): Promise<void> {
     await this.client.send(new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
       Body: buffer,
       ContentType: contentType,
-    }), { abortSignal: AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS) });
+    }), { abortSignal: attemptSignal ? AbortSignal.any([attemptSignal, AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS)]) : AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS) });
   }
 
-  async getPhoto(key: string, maxBytes: number): Promise<Buffer | undefined> {
-    const signal = AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS);
+  async getPhoto(key: string, maxBytes: number, attemptSignal?: AbortSignal): Promise<Buffer | undefined> {
+    const signal = attemptSignal ? AbortSignal.any([attemptSignal, AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS)]) : AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS);
     let object;
     try {
       object = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal: signal });
@@ -78,6 +78,16 @@ export class StorageService implements OnModuleDestroy {
     } finally {
       body.destroy();
     }
+  }
+
+  async videoStream(key: string, range?: { start: number; end: number }): Promise<Readable | undefined> {
+    const signal = AbortSignal.timeout(STORAGE_OPERATION_TIMEOUT_MS);
+    try {
+      const object = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key,
+        ...(range ? { Range: `bytes=${range.start}-${range.end}` } : {}) }), { abortSignal: signal });
+      if (!(object.Body instanceof Readable)) throw new Error('Video storage returned no readable body');
+      return addAbortSignal(signal, object.Body);
+    } catch (error) { if (error instanceof NoSuchKey) return undefined; throw error; }
   }
 
   async deletePhoto(key: string): Promise<void> {

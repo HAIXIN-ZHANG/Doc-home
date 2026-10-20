@@ -1,3 +1,4 @@
+import { PublishVideos1792627200001 } from './migrations/1792627200001-publish-videos.js';
 import { VideoUpload } from '../assets/upload.entity.js';
 import { UploadPart } from '../videos/upload-part.entity.js';
 import { AddVideoUploads1792627200000 } from './migrations/1792627200000-add-video-uploads.js';
@@ -17,7 +18,7 @@ export function createDatabaseOptions(databaseUrl: unknown): DataSourceOptions {
     type: 'postgres',
     url: validateDatabaseUrl(databaseUrl),
     entities: [Project, Asset, FileDetail, LinkDetail, VideoUpload, UploadPart],
-    migrations: [CreateProjectsAndPhotos1792368000000, AddPhotoSoftDelete1792454400001, NormalizeAssetsAndLinks1792540800000, AddVideoUploads1792627200000],
+    migrations: [CreateProjectsAndPhotos1792368000000, AddPhotoSoftDelete1792454400001, NormalizeAssetsAndLinks1792540800000, AddVideoUploads1792627200000, PublishVideos1792627200001],
     synchronize: false,
     migrationsRun: false,
     migrationsTransactionMode: 'all',

@@ -4,7 +4,7 @@ A project links-and-photos app built for the Sync Technologies take-home. Open a
 
 **Stack:** Next.js / React / Panda CSS, NestJS, TypeORM / PostgreSQL, AWS SDK / Adobe S3Mock. Application and test code use TypeScript.
 
-**Delivery status:** increments 1–4 are implemented: scope/contracts, photo soft deletion, and the shared asset model with a complete Links workflow. Video session creation, raw 5 MiB parts, persisted status, cancel/expiry and bounded admission are implemented. Video finalization/playback and UI remain planned in the remaining [delivery increments](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#seven-commit-boundaries). [Asset contracts](docs/ASSET_CONTRACTS.md) distinguish that target from current APIs; uncommitted video drafts are not delivered features.
+**Delivery status:** increments 1–5 are implemented: scope/contracts, photo soft deletion, and the shared asset model with a complete Links workflow. Video session creation, raw 5 MiB parts, persisted status, cancel/expiry and bounded admission are implemented. Durable video finalization, checksum/container validation, publication, Range reads and soft deletion are implemented. Video UI remains planned in the remaining [delivery increments](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#seven-commit-boundaries). [Asset contracts](docs/ASSET_CONTRACTS.md) distinguish that target from current APIs; uncommitted video drafts are not delivered features.
 
 ## Run locally
 
@@ -177,3 +177,16 @@ Uploads and deletes are not automatically retried. The UI waits for confirmed su
 ### Increment 4 verification
 
 `pnpm --filter api test`: 154 passed, 24 opt-in integration cases skipped. `pnpm --filter api test:integration`: 20 existing asset cases and 4 video protocol cases passed against disposable PostgreSQL/S3Mock. The video cases cover out-of-order/idempotent/conflicting parts, exact progress, application restart, project isolation, cancel/complete races, expiry, admission and actual receive size. Parts do not publish playable assets in this increment.
+
+### Video backend (increment 5)
+
+- `POST /projects/:projectId/uploads`: JSON `{ fileName, fileSizeBytes, mimeType: "video/mp4", expectedSha256 }`; maximum 20 MiB. Returns an upload ID and fixed 5 MiB chunk size.
+- `PUT /projects/:projectId/uploads/:uploadId/parts/:partNumber`: zero-based exact-sized `application/octet-stream` body, 201 first confirmation / 200 identical retry. GET the session after an uncertain response; conflicting bytes return 409.
+- `GET /projects/:projectId/uploads/:uploadId`: persisted state, acknowledged parts/bytes, percent, expiry, file identity, optional active asset/error. No storage keys.
+- `POST .../:uploadId/complete`: requires all parts, persists PROCESSING and returns 202; READY retries return 200. A soft-deleted original returns 410 `ASSET_DELETED`, retaining its unique association.
+- `DELETE .../:uploadId`: cancels incomplete work; processing/ready cannot be canceled. Incomplete sessions expire after 24 hours. Terminal temporary parts are cleaned with persisted retryable manifests.
+- Common asset content supports MP4 200 / single-range 206 / invalid or multiple-range 416. Native browser decoding is separate from READY storage availability. Soft deletion retains the original bytes.
+
+One API/worker instance only: four active/reserved sessions, four receiving parts, one bounded-buffer merge. A 160 MiB logical reservation budget includes terminal sessions until temporary cleanup succeeds, not completed original storage. It is not a free-space guarantee. Persistent scans recover queued work and expired attempts after restart. Attempts use a 60-second deadline, at most two tries and a two-second transient retry delay; storage operations have their existing 10-second bound. SQL publication rechecks the attempt/deadline under lock; a lost commit reply never triggers deletion of a potentially referenced original. Orphan object inventory/sweeping, multi-instance leases and production queues remain deferred. The process must settle an in-flight storage operation before retrying; a watchdog cannot guarantee recovery from an infrastructure deadlock.
+
+Verified: 157 API unit cases; 20 existing + 12 video integration cases against disposable PostgreSQL/S3Mock, including actual local 15-second H.264/AAC 1280×720 MP4 (about 14 MiB), exact stored-byte equality, Range, tombstone/no-resurrection, restart, retry exhaustion, cleanup outage and lost commit acknowledgement. Repeat with `VIDEO_TEST_FILE=/absolute/path/to/sample.mp4 pnpm --filter api test:integration`; no media is committed. No normal user database was migrated. API typecheck/lint/build passed. Browser playback is not yet claimed by this backend increment.

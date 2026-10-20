@@ -1,3 +1,4 @@
+import { Asset } from '../assets/asset.entity.js';
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager, In } from 'typeorm';
@@ -40,14 +41,15 @@ export class UploadsService {
     });
     return this.statusBody(upload, await this.database.getRepository(UploadPart).findBy({ uploadId: id }));
   }
-  statusBody(upload: VideoUpload, parts: UploadPart[]) {
+  async statusBody(upload: VideoUpload, parts: UploadPart[]) {
+    const asset = upload.state === 'READY' ? await this.database.getRepository(Asset).findOne({ where: { projectId: upload.projectId, type: 'video', file: { uploadId: upload.id } }, relations: { file: true } }) : null;
     const receivedParts = parts.sort((a,b) => a.partNumber-b.partNumber).map(part => ({ partNumber: part.partNumber, sizeBytes: part.sizeBytes, sha256: part.sha256 }));
     // Terminal cleanup removes manifests; completed transfer remains historically 100%.
     const receivedBytes = upload.state === 'READY' ? upload.sizeBytes : parts.reduce((sum, part) => sum + part.sizeBytes, 0);
     return { uploadId: upload.id, state: upload.state, fileSizeBytes: upload.sizeBytes, expectedSha256: upload.sha256, fileName: upload.name,
       chunkSizeBytes: CHUNK_BYTES, totalParts: Math.ceil(upload.sizeBytes/CHUNK_BYTES), receivedParts, receivedBytes,
       uploadPercent: Math.floor(receivedBytes/upload.sizeBytes*100), expiresAt: upload.expiresAt.toISOString(),
-      assetAvailable: false as boolean, asset: null as unknown, error: upload.errorCode ? { code: upload.errorCode, message: upload.errorCode === 'INVALID_VIDEO' ? 'File checksum or MP4 structure is invalid.' : 'Video processing failed. Start a new upload.' } : null };
+      assetAvailable: !!asset, asset: asset ? { id: asset.id, projectId: asset.projectId, name: asset.name, type: 'video' as const, createdAt: asset.createdAt.toISOString(), mimeType: 'video/mp4' as const, sizeBytes: asset.file!.sizeBytes, contentUrl: `/projects/${asset.projectId}/assets/${asset.id}/content` } : null, error: upload.errorCode ? { code: upload.errorCode, message: upload.errorCode === 'INVALID_VIDEO' ? 'File checksum or MP4 structure is invalid.' : 'Video processing failed. Start a new upload.' } : null };
   }
   async registerPart(projectId: string, id: string, partNumber: number, bytes: Buffer) {
     const upload = await this.database.getRepository(VideoUpload).findOneBy({ id, projectId });
