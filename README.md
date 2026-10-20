@@ -133,7 +133,7 @@ pnpm test:e2e
 
 Both runners create disposable storage, preserve normal volumes and remove only their own containers. E2E builds/starts both apps, creates PNG/JPEG fixtures and prints an external screenshot/log directory. Media stays outside Git. Neither runner installs dependencies or pulls images. Test ports default to 33500/33501; override `E2E_WEB_PORT`/`E2E_API_PORT` if occupied.
 
-[GitHub Actions](.github/workflows/ci.yml) selects web/API checks from the changed paths, then typechecks, lints, tests and builds. Public contract/root changes select both apps; docs-only changes skip app jobs. Storage integration/browser checks are opt-in locally, not hosted CI jobs. This task has not pushed, deployed or verified hosted CI; see [executed evidence](docs/DELIVERY_VERIFICATION.md).
+[GitHub Actions](.github/workflows/ci.yml) selects web/API checks from the changed paths, then typechecks, lints, tests and builds. Public contract/root changes select both apps; docs-only changes skip app jobs. Storage integration/browser checks are opt-in locally, not hosted CI jobs. See the pull request checks for hosted CI status and [executed evidence](docs/DELIVERY_VERIFICATION.md) for local integration/browser results. No cloud deployment is included.
 
 ## Deliberate limits
 

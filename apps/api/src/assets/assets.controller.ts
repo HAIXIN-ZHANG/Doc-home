@@ -1,10 +1,11 @@
-import { Headers, NotFoundException } from '@nestjs/common';
 import {
   Body,
   Controller,
   Delete,
   Get,
   HttpCode,
+  Headers,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -44,19 +45,19 @@ export class AssetsController {
   @HttpCode(204)
   delete(
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
-    @Param('assetId', new ParseUUIDPipe()) id: string,
+    @Param('assetId', new ParseUUIDPipe()) assetId: string,
   ) {
-    return this.assets.softDelete(projectId, id);
+    return this.assets.softDelete(projectId, assetId);
   }
   @Get('assets/:assetId/content')
   async content(
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
-    @Param('assetId', new ParseUUIDPipe()) id: string,
-    @Query() size: PhotoSizeQueryDto,
+    @Param('assetId', new ParseUUIDPipe()) assetId: string,
+    @Query() imageSize: PhotoSizeQueryDto,
     @Headers('range') rangeHeader: string | undefined,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const video = await this.assets.findVideo(projectId, id);
+    const video = await this.assets.findVideo(projectId, assetId);
     if (video?.file) {
       const file = video.file;
       response.setHeader('Accept-Ranges', 'bytes');
@@ -85,8 +86,8 @@ export class AssetsController {
     const requestId: unknown = response.locals.requestId;
     const content = await this.photos.getProjectPhoto(
       projectId,
-      id,
-      size,
+      assetId,
+      imageSize,
       typeof requestId === 'string' ? requestId : undefined,
     );
     response.setHeader('Cache-Control', 'no-store');

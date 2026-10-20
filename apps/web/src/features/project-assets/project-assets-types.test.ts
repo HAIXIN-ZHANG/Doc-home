@@ -47,6 +47,11 @@ describe('project asset composition', () => {
       parseProjectAssets({ project: { ...project, id: videoId }, assets: [] }, projectId),
     ).toThrow();
   });
+  it('rejects a photo from another project before adapting away its project ID', () => {
+    expect(() =>
+      parseProjectAssets({ project, assets: [{ ...photo, projectId: videoId }] }, projectId),
+    ).toThrow('Project asset does not belong to the requested project');
+  });
   it('rejects malformed photo metadata instead of silently hiding the photo', () => {
     expect(() =>
       parseProjectAssets({ project, assets: [{ ...photo, name: undefined }] }, projectId),

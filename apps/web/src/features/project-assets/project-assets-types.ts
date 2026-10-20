@@ -23,6 +23,9 @@ export function parseProjectAssets(value: unknown, projectId: string): ProjectAs
   ) {
     throw new Error('Unsupported project asset type');
   }
+  if (!assets.every((asset) => isRecord(asset) && asset.projectId === projectId)) {
+    throw new Error('Project asset does not belong to the requested project');
+  }
   // Keep the original photo view contract while loading the mixed project in one request.
   const photos = assets
     .filter(isRecord)

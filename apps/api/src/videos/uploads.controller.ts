@@ -21,7 +21,8 @@ import { CHUNK_BYTES, MAX_RECEIVING_PARTS, PART_RECEIVE_TIMEOUT_MS } from './vid
 export class UploadsController {
   private activePartRequests = 0;
   constructor(private readonly uploads: UploadsService) {}
-  @Post() async create(
+  @Post()
+  async create(
     @Param('projectId', ParseUUIDPipe) projectId: string,
     @Body() dto: CreateUploadDto,
     @Res({ passthrough: true }) response: Response,
@@ -34,25 +35,28 @@ export class UploadsController {
       throw error;
     }
   }
-  @Get(':uploadId') status(
+  @Get(':uploadId')
+  status(
     @Param('projectId', ParseUUIDPipe) projectId: string,
-    @Param('uploadId', ParseUUIDPipe) id: string,
+    @Param('uploadId', ParseUUIDPipe) uploadId: string,
   ) {
-    return this.uploads.getUploadStatus(projectId, id);
+    return this.uploads.getUploadStatus(projectId, uploadId);
   }
-  @Delete(':uploadId') cancel(
+  @Delete(':uploadId')
+  cancel(
     @Param('projectId', ParseUUIDPipe) projectId: string,
-    @Param('uploadId', ParseUUIDPipe) id: string,
+    @Param('uploadId', ParseUUIDPipe) uploadId: string,
   ) {
-    return this.uploads.cancelUpload(projectId, id);
+    return this.uploads.cancelUpload(projectId, uploadId);
   }
-  @Post(':uploadId/complete') async complete(
+  @Post(':uploadId/complete')
+  async complete(
     @Param('projectId', ParseUUIDPipe) projectId: string,
-    @Param('uploadId', ParseUUIDPipe) id: string,
+    @Param('uploadId', ParseUUIDPipe) uploadId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const state = await this.uploads.completeUpload(projectId, id);
-    const status = await this.uploads.getUploadStatus(projectId, id);
+    const state = await this.uploads.completeUpload(projectId, uploadId);
+    const status = await this.uploads.getUploadStatus(projectId, uploadId);
     if (state === 'READY' && !status.assetAvailable)
       throw new HttpException(
         { statusCode: 410, message: 'The published asset was deleted', code: 'ASSET_DELETED' },
@@ -61,10 +65,11 @@ export class UploadsController {
     response.status(state === 'READY' ? 200 : 202);
     return status;
   }
-  @Put(':uploadId/parts/:partNumber') async part(
+  @Put(':uploadId/parts/:partNumber')
+  async part(
     @Param('projectId', ParseUUIDPipe) projectId: string,
-    @Param('uploadId', ParseUUIDPipe) id: string,
-    @Param('partNumber', ParseIntPipe) index: number,
+    @Param('uploadId', ParseUUIDPipe) uploadId: string,
+    @Param('partNumber', ParseIntPipe) partNumber: number,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
@@ -76,24 +81,24 @@ export class UploadsController {
       throw new HttpException('Use application/octet-stream', 415);
     this.activePartRequests++;
     const chunks: Buffer[] = [];
-    let size = 0;
+    let receivedBytes = 0;
     // A hard receive deadline bounds stalled requests as well as byte buffering.
     const timer = setTimeout(() => request.destroy(), PART_RECEIVE_TIMEOUT_MS);
     try {
-      await this.uploads.getUploadStatus(projectId, id);
+      await this.uploads.getUploadStatus(projectId, uploadId);
       for await (const chunk of request as AsyncIterable<Buffer>) {
-        size += chunk.length;
-        if (size > CHUNK_BYTES) throw new HttpException('Part exceeds 5 MiB', 413);
+        receivedBytes += chunk.length;
+        if (receivedBytes > CHUNK_BYTES) throw new HttpException('Part exceeds 5 MiB', 413);
         chunks.push(chunk);
       }
       const result = await this.uploads.registerPart(
         projectId,
-        id,
-        index,
-        Buffer.concat(chunks, size),
+        uploadId,
+        partNumber,
+        Buffer.concat(chunks, receivedBytes),
       );
       response.status(result.created ? 201 : 200);
-      return { partNumber: index, confirmed: true };
+      return { partNumber, confirmed: true };
     } finally {
       clearTimeout(timer);
       this.activePartRequests--;

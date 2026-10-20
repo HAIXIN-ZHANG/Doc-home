@@ -1,4 +1,4 @@
-import { isRecord } from '@/lib/validation';
+import { isRecord, isTimestamp } from '@/lib/validation';
 
 import { projectAssetPath } from '../project-assets/asset-urls';
 export interface LinkAsset {
@@ -39,12 +39,18 @@ export function parseLink(value: unknown, projectId: string): LinkAsset {
     typeof value.name !== 'string' ||
     !value.name.trim() ||
     typeof value.url !== 'string' ||
-    typeof value.createdAt !== 'string' ||
-    !Number.isFinite(Date.parse(value.createdAt))
+    !isTimestamp(value.createdAt)
   )
     throw new Error('Invalid link response');
   normalizeUrl(value.url);
-  return value as unknown as LinkAsset;
+  return {
+    id: value.id,
+    projectId,
+    type: 'link',
+    name: value.name,
+    url: value.url,
+    createdAt: value.createdAt,
+  };
 }
 export function parseProjectLinks(value: unknown, projectId: string): LinkAsset[] {
   if (

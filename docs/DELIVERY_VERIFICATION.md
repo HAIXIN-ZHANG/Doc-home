@@ -15,7 +15,7 @@ Personal learning/commit notes are outside this repository. This file records re
 | `pnpm typecheck` | Both applications passed |
 | `pnpm lint` | Both applications passed |
 | `pnpm --filter api test` | 12 suites, 157 passed; 35 opt-in integration cases skipped |
-| `pnpm --filter web test` | 4 suites, 36 passed |
+| `pnpm --filter web test` | 4 suites, 37 passed |
 | `VIDEO_TEST_FILE=/absolute/sample.mp4 pnpm --filter api test:integration` | 20 original asset + 15 video cases passed with real disposable PostgreSQL/S3Mock |
 | `pnpm --filter api build` | Passed |
 | Webpack production build | Passed; used by the local E2E runner. The default project build command remains unchanged |
@@ -51,7 +51,7 @@ pnpm test:e2e
 
 The runner checks port availability, creates dedicated containers with random storage ports, applies migrations/seeds only to its disposable database, generates photo fixtures, builds/starts both apps, runs `apps/web/e2e/mixed-assets.spec.ts`, then stops only its own app processes/containers/anonymous volumes. It prints an external evidence directory containing build/server logs and browser screenshots. It never pulls images, installs dependencies, fetches external link destinations or resets normal Compose volumes. Override `E2E_WEB_PORT` / `E2E_API_PORT` if the default test ports are occupied; `E2E_BROWSER_CHANNEL` selects an already installed Playwright browser channel.
 
-These E2E tests are opt-in local verification, not part of the current hosted CI. Hosted CI results have not been checked in this task; no push, PR publication, cloud deployment or real AWS test is claimed.
+These E2E tests are opt-in local verification, not part of the current hosted CI. The counts here record local execution. Hosted CI status is reported separately in the pull request checks; cloud deployment and real AWS remain outside these checks.
 
 ## Deliberate remaining limits
 
@@ -82,3 +82,11 @@ All rebased feature commits preserve their file trees, messages, author and time
 Captured the already-running localhost:3000 page on 2026-10-20 at 1440px desktop, 834px tablet and 390px mobile widths. Each full-page image includes the link list, all three existing photo cards and the complete native video card, including controls and deletion. The captures preserve the current sample records; “PR closed” is a user-created link name. The visible Next.js development indicator is retained. No sample records were added or deleted for the screenshots.
 
 [Desktop](images/mixed-assets-desktop.jpg) · [Tablet](images/mixed-assets-tablet.jpg) · [Mobile](images/mixed-assets-mobile.jpg). These are visual evidence, not a new execution of the integration/E2E suite.
+
+## Final naming and contract double-check
+
+The final review expanded compressed asset/video entities and DTO decorators, named controller parameters `assetId`, `uploadId`, `partNumber` and `receivedBytes`, and removed a redundant link-response double cast in favour of explicit public-field mapping. Existing comments explain failure handling and invariants; no generic common/service hierarchy was introduced. Historical draft/publishing statements in the setup and scope documents were corrected.
+
+Mixed-response parsing now checks each asset's project association before adapting photo metadata to the legacy view shape. One new regression rejects a photo whose project differs from the requested project. Backend project association checks already existed; this closes the frontend runtime contract gap.
+
+Re-executed after these changes: both app typechecks and lints passed, 157 API unit cases passed (35 opt-in integration cases skipped), and 37 frontend cases passed across four suites. The previously recorded integration, browser and build results remain historical evidence; they were not re-executed for this narrowly scoped review. No dependency or migration SQL changed.

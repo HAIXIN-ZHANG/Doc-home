@@ -2,7 +2,7 @@
 
 ## Status and source of truth
 
-The approved expansion is **Links + Photos + Videos with soft deletion**. All seven local increments are complete, including follow-up review fixes and repeatable mixed-asset delivery checks. [Delivery verification](DELIVERY_VERIFICATION.md) records executed commands, coverage and limitations. This does not imply hosted CI, deployment or production readiness. Unregistered local DTO/migration drafts remain outside delivered code.
+The approved expansion is **Links + Photos + Videos with soft deletion**. All seven local increments are complete, including follow-up review fixes and repeatable mixed-asset delivery checks. [Delivery verification](DELIVERY_VERIFICATION.md) records executed commands, coverage and limitations. This does not imply hosted CI, deployment or production readiness.
 
 The assessment's follow-up asks for at least two asset types. Photos plus Links reach that checkpoint; Videos add the explicitly chosen resumable upload, asynchronous finalization and queryable status. Keep the scope small around one seeded project. Do not extend project editing, documents or custom fields.
 
@@ -31,7 +31,7 @@ Work one increment at a time. Each implementation commit must build, include its
 | 6. `feat: add video upload and viewing UI` | Video selection/checking/progress/finalizing/recovery, task row, player, errors/delete and responsive mixed-assets layout | Complete browser workflow; dialog close differs from cancel; preserve photo/link usability |
 | 7. `test: verify mixed asset workflows and document delivery` | Repeatable PostgreSQL/S3Mock integration checks, real image/video browser checks, final README/scope evidence and necessary CI adjustments | Record commands/results and remaining gaps; no deferred feature expansion |
 
-Commit 3 is the first complete two-type checkpoint. Its migration work is deliberately explicit: a common API must not leave two writable photo metadata stores or discard existing data. The photo migration is now separate and registered. The combined soft-delete/link/video draft is still unregistered and must be reworked before its owning increments; it is not a release migration.
+Commit 3 is the first complete two-type checkpoint. Its migration work is deliberately explicit: a common API must not leave two writable photo metadata stores or discard existing data. Photo soft deletion, asset normalization, video sessions and publication each have separate registered migrations. The earlier combined draft was removed.
 
 A local commit does not imply push, PR update, reviewer contact or deployment. Those actions are outside this increment.
 
@@ -86,6 +86,6 @@ Before each implementation commit, run its relevant tests and checks. Commit 2 r
 
 Keep existing records/object data intact. Do not reset volumes, install dependencies or access cloud services as an implicit part of these steps. Review schema changes and document rollback limits before running them. Future authorization, audit, retention periods, restore UI, production AWS behavior, multi-instance processing and deployment remain explicitly incomplete.
 
-Increment 6 checks: 157 API unit cases, 31 web component cases, 32 isolated integration cases, both typechecks/lints and production builds passed (Webpack fallback for Next.js). Browser used a local 15-second H.264/AAC landscape sample; portrait playback and cross-browser checks remain unverified. No media is in Git, and no normal database was migrated.
+Historical increment 6 checkpoint: 157 API unit cases, 31 web component cases, 32 isolated integration cases, both typechecks/lints and production builds passed (Webpack fallback for Next.js). Browser used a local 15-second H.264/AAC landscape sample; portrait playback and cross-browser checks remain unverified. No media is in Git, and no normal database was migrated.
 
-Increment 7 completed: 157 API unit cases, 32 web component cases, 35 disposable integration cases and four serial Chrome E2E workflows passed. Portrait track orientation, PNG/JPEG, link/photo/video deletion, missing-session recovery and 1440/834/390/320px layouts were checked. See delivery verification for exact commands and deliberate limitations.
+Historical increment 7 checkpoint: 157 API unit cases, 32 web component cases, 35 disposable integration cases and four serial Chrome E2E workflows passed. Portrait track orientation, PNG/JPEG, link/photo/video deletion, missing-session recovery and 1440/834/390/320px layouts were checked. Current follow-up results are in [delivery verification](DELIVERY_VERIFICATION.md).

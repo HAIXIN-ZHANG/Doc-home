@@ -14,7 +14,7 @@ import { toVideoAssetResponse } from '../assets/asset-response.mapper.js';
 import { Asset } from '../assets/asset.entity.js';
 import { Project } from '../projects/entities/project.entity.js';
 import { StorageService } from '../storage/storage.service.js';
-import { VideoUpload } from '../videos/video-upload.entity.js';
+import { VideoUpload } from './video-upload.entity.js';
 import { CreateUploadDto } from './create-upload.dto.js';
 import { UploadPart } from './upload-part.entity.js';
 import type { UploadStatusResponse } from './upload-status.js';
