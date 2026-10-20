@@ -2,7 +2,7 @@
 
 This is a high-level direction, not a commitment to build the whole product. The assessment describes a project-detail view with links, documents, photos, videos and custom fields. Broader capabilities below are our proposals and would need user feedback and prioritisation.
 
-The exact take-home scope is defined in [Project assets scope delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md). That document is authoritative for current implementation; this blueprint is background.
+The exact take-home scope is defined in [Project assets scope delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md). That document distinguishes the committed baseline from the approved next increments; this blueprint is background. Target mixed-asset contracts are in [Asset contracts](ASSET_CONTRACTS.md).
 
 ## Product purpose
 
@@ -13,7 +13,7 @@ Give project managers a shared workspace to understand a project and find the re
 | Epic | Possible capabilities | Relationship to this submission |
 | --- | --- | --- |
 | Project workspace | Project facts, ownership, status, dates; later project creation, editing and archive | A seeded project's name/address gives photos context |
-| Related assets | Links, documents, photos and videos; upload, open, preview, list and delete | **Selected slice: JPG/PNG photos only** |
+| Related assets | Links, documents, photos and videos; upload, open, preview, list and delete | Photo baseline delivered; Links + Photos + Videos selected for the next increments |
 | Custom information | Key-value fields; later templates and typed validation | Remaining brief capability, deferred |
 | Collaboration | Comments, assignments, notifications and activity history | Future product proposal |
 | Discovery and reporting | Search, filtering, saved views, exports and dashboards | Future product proposal |
@@ -35,15 +35,15 @@ flowchart LR
     CI -. later .-> CD[Deployment and rollback]
 ```
 
-Start with one modular API. Add separate workers, search infrastructure or more services when a validated product need warrants them. The delivered photo slice uses local S3Mock with AWS SDK v3; other asset types remain future work. A production deployment would use private object storage such as S3 while business records keep their stable storage keys.
+Start with one modular API. Add separate workers, search infrastructure or more services when a validated product need warrants them. The committed photo baseline uses local S3Mock with AWS SDK v3. Links and Videos are now selected next increments using the same SQL/storage architecture; they are not delivered by this documentation change. A production deployment would use private object storage such as S3 while business records keep their stable storage keys.
 
 ## Possible next increments after this submission
 
-1. Add external links to demonstrate a second asset type, then decide which listing/deletion behaviours deserve a common model.
-2. Add document upload/download and custom fields to cover more of the brief. Clarify its `XSL` document-format entry before implementing it.
-3. Add video playback and appropriate thumbnail generation when size, format and preview needs are clear.
+1. Complete the selected Links + Photos + Videos expansion and shared soft-deletion behavior, following the seven commit boundaries in the scope plan. Link creation and video processing remain type-specific.
+2. After that selected expansion, consider document upload/download and custom fields. Clarify the brief's `XSL` document-format entry before implementing it.
+3. Consider generated media previews, larger-video support and transcoding only when actual format/size/preview requirements justify them.
 4. Expand project navigation and introduce identity, project permissions and protected file access before real customer use.
-5. Replace the local S3 emulator with provisioned private object storage; verify IAM and real-provider behaviour, then introduce versioning, cleanup jobs, backups and restore procedures as required.
-6. Extend the basic CI with integration checks, controlled deployments, migration handling, rollback and monitoring. Collaboration, reporting and integrations follow validated demand.
+5. Replace the local S3 emulator with provisioned private object storage; verify IAM and real-provider behavior, then introduce backups, restore/purge policy and object reconciliation as required.
+6. Extend checks with controlled deployment, production migration handling, rollback and monitoring. Collaboration, reporting and integrations follow validated demand.
 
 These steps describe an evolution path, not a delivery schedule. No cloud provider, infrastructure tool, user-role model or performance target is assumed to be a company requirement.
