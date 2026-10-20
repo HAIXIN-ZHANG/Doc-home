@@ -1,4 +1,4 @@
-import { getProjectLinks } from '@/features/links/link-api.server';
+import { getProjectMedia, ProjectAssetsApiError } from '@/features/links/link-api.server';
 import { notFound } from 'next/navigation';
 import { getProjectPhotos, PhotoApiError } from '@/features/photos/photo-api';
 import type { ProjectPhotos } from '@/features/photos/photo-types';
@@ -10,13 +10,15 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(projectId)) notFound();
 
   let data: ProjectPhotos;
+  let media: Awaited<ReturnType<typeof getProjectMedia>>;
   try {
-    data = await getProjectPhotos(projectId);
+    const result = await Promise.all([getProjectPhotos(projectId), getProjectMedia(projectId)]);
+    data = result[0];
+    media = result[1];
   } catch (error) {
-    if (error instanceof PhotoApiError && (error.status === 400 || error.status === 404)) notFound();
+    if ((error instanceof PhotoApiError || error instanceof ProjectAssetsApiError) && (error.status === 400 || error.status === 404)) notFound();
     // A failed query belongs in the route's error boundary, never an empty collection.
     throw error;
   }
-  const links = await getProjectLinks(projectId);
-  return <ProjectPhotoQuery key={projectId} initialData={data} initialLinks={links} />;
+  return <ProjectPhotoQuery key={projectId} initialData={data} initialLinks={media.links} initialVideos={media.videos} />;
 }

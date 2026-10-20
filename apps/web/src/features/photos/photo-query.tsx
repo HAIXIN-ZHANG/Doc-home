@@ -1,4 +1,5 @@
 'use client';
+import type { VideoAsset } from '../videos/video-api';
 
 import { useState } from 'react';
 import type { LinkAsset } from '../links/link-api';
@@ -12,7 +13,7 @@ import { parseProjectPhotos } from './photo-types';
 import { deletePhoto, PhotoDeleteError } from './photo-delete-api';
 import type { ProjectPhoto, ProjectPhotos } from './photo-types';
 
-function PhotoQuery({ initialData, initialLinks }: { initialData: ProjectPhotos; initialLinks?: LinkAsset[] }) {
+function PhotoQuery({ initialData, initialLinks, initialVideos }: { initialData: ProjectPhotos; initialLinks?: LinkAsset[]; initialVideos?: VideoAsset[] }) {
   const projectId = initialData.project.id;
   const client = useQueryClient();
   const uploading = useIsMutating({ mutationKey: ['upload-photo', projectId] }) > 0;
@@ -82,7 +83,7 @@ function PhotoQuery({ initialData, initialLinks }: { initialData: ProjectPhotos;
   }
 
   return (
-    <PhotoPage {...query.data} initialLinks={initialLinks} onDelete={photo => { void handleDelete(photo); }}
+    <PhotoPage {...query.data} initialLinks={initialLinks} initialVideos={initialVideos} onDelete={photo => { void handleDelete(photo); }}
       deletingPhotoId={deletion.isPending ? deletion.variables?.id : undefined}
       deletionBlocked={deletion.isPending || uploading || query.isFetching || needsRefresh || refreshing}>
       {deletionFeedback ? <p role={deletionFeedback.error ? 'alert' : 'status'} className={css({ textStyle: 'small', color: deletionFeedback.error ? 'status.danger' : 'status.success' })}>{deletionFeedback.message}</p> : null}
@@ -103,8 +104,8 @@ function PhotoQuery({ initialData, initialLinks }: { initialData: ProjectPhotos;
   );
 }
 
-export function ProjectPhotoQuery({ initialData, initialLinks }: { initialData: ProjectPhotos; initialLinks?: LinkAsset[] }) {
+export function ProjectPhotoQuery({ initialData, initialLinks, initialVideos }: { initialData: ProjectPhotos; initialLinks?: LinkAsset[]; initialVideos?: VideoAsset[] }) {
   // Scope this client/cache to the page; never share server-user state in a module singleton.
   const [client] = useState(() => new QueryClient());
-  return <QueryClientProvider client={client}><PhotoQuery initialData={initialData} initialLinks={initialLinks} /></QueryClientProvider>;
+  return <QueryClientProvider client={client}><PhotoQuery initialData={initialData} initialLinks={initialLinks} initialVideos={initialVideos} /></QueryClientProvider>;
 }

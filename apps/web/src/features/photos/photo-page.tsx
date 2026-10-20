@@ -1,3 +1,5 @@
+import { VideosSection } from '../videos/videos-section';
+import type { VideoAsset } from '../videos/video-api';
 import { LinksSection } from '../links/links-section';
 import type { LinkAsset } from '../links/link-api';
 import Image from 'next/image';
@@ -9,9 +11,10 @@ import { PhotoLayout } from './photo-layout';
 import { DEMO_PROJECT_ID } from './photo-urls';
 import type { ProjectPhotos } from './photo-types';
 
-export function PhotoPage({ project, photos, children, onDelete, deletingPhotoId, deletionBlocked, initialLinks }: ProjectPhotos & {
+export function PhotoPage({ project, photos, children, onDelete, deletingPhotoId, deletionBlocked, initialLinks, initialVideos }: ProjectPhotos & {
   children?: ReactNode;
   initialLinks?: LinkAsset[];
+  initialVideos?: VideoAsset[];
 } & PhotoDeleteActions) {
   return (
     <PhotoLayout>
@@ -54,6 +57,7 @@ export function PhotoPage({ project, photos, children, onDelete, deletingPhotoId
           </ul>
         )}
       </section>
+      <VideosSection projectId={project.id} initialVideos={initialVideos} />
     </PhotoLayout>
   );
 }
