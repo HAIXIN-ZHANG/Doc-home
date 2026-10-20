@@ -4,6 +4,8 @@ A project photo-management app built for the Sync Technologies take-home. Open a
 
 **Stack:** Next.js / React / Panda CSS, NestJS, TypeORM / PostgreSQL, AWS SDK / Adobe S3Mock. Application and test code use TypeScript.
 
+**Delivery status:** the committed implementation is the photo workflow described below. The approved next scope adds Links, Videos and soft deletion in [seven increments](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#seven-commit-boundaries). Their [target data and API contracts](docs/ASSET_CONTRACTS.md) are design commitments, not currently available endpoints. Documentation of planned behavior does not validate any uncommitted implementation drafts.
+
 ## Run locally
 
 Requirements: Node.js >=24, pnpm 10.24.0 and Docker. Run from the repository root; copy the environment file on first setup only.
@@ -50,9 +52,10 @@ compose.yaml
 Web and API are separate applications in one pnpm workspace. PostgreSQL stores metadata and generated object keys; S3Mock stores file bytes. The API owns validation and storage access.
 
 - [Delivery scope and trade-offs](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md)
+- [Target mixed-asset data and API contracts](docs/ASSET_CONTRACTS.md)
 - [Future product direction](docs/PRODUCT_BLUEPRINT.md)
 - [Figma and design previews](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#design-reference)
-- [Design and implementation screenshots: desktop, tablet and mobile](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#screenshots)
+- [Design and implementation screenshots: desktop, tablet and mobile](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#baseline-photo-screenshots)
 
 ## HTTP API
 
@@ -115,7 +118,7 @@ pnpm build
 
 Unit/component tests need no Docker or `.env`. Optional coverage commands are `pnpm --filter api test:coverage` and `pnpm --filter web test:coverage`; reports go to each app's ignored `coverage/` directory.
 
-| Verification | Recorded result |
+| Photo-baseline verification (recorded previously; not rerun for this docs increment) | Recorded result |
 | --- | --- |
 | API Jest | 9 suites / 121 cases: handlers, service rules, validation, storage boundaries, errors/logging, configuration and health |
 | Web Jest + React Testing Library | 1 suite / 9 cases: mutation coordination, validation and failure/recovery states |
@@ -137,6 +140,6 @@ For a new schema change, update the Entity, add/register a new migration with re
 
 ## Deliberate limits
 
-This is a photo-only demonstration, with one seeded project. Links, documents, videos, custom fields, authentication, pagination and cloud deployment are excluded. Project association checks are **not user authorization**.
+The committed baseline is a photo-only demonstration with one seeded project. Links, videos and soft deletion are approved next increments, not delivered by this documentation change. Documents, custom fields, authentication, pagination and cloud deployment remain outside the selected expansion. Project association checks are **not user authorization**.
 
 Uploads and deletes are not automatically retried. The UI waits for confirmed success and requires list reconciliation when a result is uncertain. SQL and object storage do not share a transaction. A metadata-save error retains the uploaded file and logs IDs for reconciliation, because the transaction may already have committed. Delete cleanup is best effort. Both paths can leave orphan files. Content-signature validation is not full decoding or malware scanning. See the [scope document](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) for design choices and next steps.
