@@ -127,3 +127,26 @@ describe('StorageService', () => {
     await expect(service.deletePhoto('key')).rejects.toThrow('delete failed');
   });
 });
+
+describe('video storage reads', () => {
+  it('forwards an exact byte range and returns the readable stream', async () => {
+    const stream = Readable.from([Buffer.from('ab')]);
+    s3.on(GetObjectCommand).resolves({ Body: body(stream), ContentLength: 2 });
+    const result = await service.videoStream('videos/id.mp4',{start:2,end:3});
+    expect(s3.commandCalls(GetObjectCommand)[0]?.args[0].input).toEqual({Bucket:'test-assets',Key:'videos/id.mp4',Range:'bytes=2-3'});
+    expect(result).toBe(stream); stream.destroy();
+  });
+  it('retains storage outages as errors and only treats absent objects as missing', async () => {
+    s3.on(GetObjectCommand).rejects(new Error('offline'));
+    await expect(service.videoStream('id')).rejects.toThrow('offline');
+    s3.on(GetObjectCommand).rejects(new NoSuchKey({message:'missing',$metadata:{httpStatusCode:404}}));
+    await expect(service.videoStream('id')).resolves.toBeUndefined();
+  });
+  it('propagates an attempt cancellation while consuming stored bytes', async () => {
+    const stream = new Readable({read(){}}), controller = new AbortController();
+    s3.on(GetObjectCommand).resolves({Body:body(stream)});
+    const reading = service.getPhoto('id',100,controller.signal);
+    await Promise.resolve(); controller.abort();
+    await expect(reading).rejects.toThrow(); expect(stream.destroyed).toBe(true);
+  });
+});
