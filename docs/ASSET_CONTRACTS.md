@@ -1,12 +1,12 @@
-# Mixed asset contracts — implementation target
+# Mixed asset contracts
 
-Status: approved mixed-asset contract; increments 1–7 are implemented and checked locally. Increments 2–6 implement and check shared photo/link soft deletion, the common asset model, Links, mixed listing and photo compatibility. Video sessions and manifests are now persisted; finalization, publication and Range content are implemented; frontend upload/recovery/native playback/deletion is implemented. Portrait-orientation and repeatable local delivery checks passed; other-browser/production checks remain unverified. See [delivery evidence](DELIVERY_VERIFICATION.md). Use [README](../README.md) for actual available behavior. The committed registered migrations define the delivered schema. The [delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) defines the seven commit boundaries.
+Status: all seven increments are implemented. This document describes the delivered data, HTTP and lifecycle contracts; registered migrations define the schema. See [README](../README.md) for setup, [delivery evidence](DELIVERY_VERIFICATION.md) for checks and remaining gaps, and the [delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) for increment boundaries.
 
 This document supersedes earlier SQLite/local-disk proposals. Keep Next.js/React/Panda, NestJS/TypeORM, PostgreSQL and private S3-compatible storage (Adobe S3Mock locally). No storage replacement, extra service or new dependency is required by this contract.
 
 ## 1. Domain and persistence
 
-| Model | Target fields / constraints |
+| Model | Fields / constraints |
 | --- | --- |
 | Project | Existing UUID, name, address and creation time; preserve seed and user edits |
 | Asset | UUID, project FK, `type: link \| photo \| video`, display name, creation time and nullable `deletedAt` |
@@ -35,11 +35,11 @@ Common fields: `id`, `projectId`, `type`, `name`, `createdAt` (ISO timestamp).
 
 Do not return storage keys, absolute paths or deleted records in ordinary responses. Content URLs use project-scoped API routes and go through NestJS; no public bucket/static path bypass. Project association checks are not user authorization. Authentication remains outside this assessment scope.
 
-## 2. Target HTTP interface
+## 2. HTTP interface
 
 All path IDs are UUIDs. JSON control requests use normal HTTP; deployed traffic requires HTTPS. Existing photo routes remain available.
 
-| Method / route | Target result |
+| Method / route | Result |
 | --- | --- |
 | `GET /projects/:projectId/assets` | 200 project and mixed asset list |
 | `POST /projects/:projectId/links` | 201 LinkAsset, after database commit |
@@ -77,19 +77,19 @@ Preserve the existing single multipart `file` upload, nonempty JPEG/PNG and incl
 
 Current signature detection is not full image decoding or malware scanning. Additional decode validation is a separate possible improvement, not claimed here as delivered or required in this expansion.
 
-Store originals; retain existing bounded read-time previews. No stored/generated thumbnail pipeline or transform cache. Photo viewer fits the original ratio; video uses a neutral play placeholder and a native player; links use an external-link indicator. A shared asset wrapper owns heading/count/delete feedback; each type owns its creation and preview behavior.
+Store originals; retain existing bounded read-time previews. No stored/generated thumbnail pipeline or transform cache. Photo previews preserve the original ratio; videos use a native player with a 16:9 contain layout and no generated poster; links use an external-link indicator. Shared `AssetSection` owns heading/count/description structure. Each feature owns creation, preview and deletion feedback, using shared controls where appropriate.
 
 ## 5. Video upload protocol
 
-| Parameter | Target decision |
+| Parameter | Implemented policy |
 | --- | --- |
 | Input | Nonempty MP4, at most 20 MiB; filename ≤255 characters without controls |
 | Create body | `fileName`, `fileSizeBytes`, `mimeType: video/mp4`, `expectedSha256` (64 lowercase hexadecimal characters) |
 | Parts | Server-selected 5 MiB; zero-based indices; exact remaining length for final part |
 | Request body | Raw binary `application/octet-stream`, no multipart or Base64 |
 | Frontend | One video upload at a time, up to two part requests concurrently |
-| Backend admission | One API instance, at most four active sessions, four receiving part requests and one finalizer |
-| Temporary budget | Reserve twice the declared file size per active session; at most 160 MiB of logical reservations |
+| Backend admission | One API instance, at most four active or not-yet-cleaned sessions, four receiving part requests and one finalizer |
+| Temporary budget | Reserve twice the declared file size per active or not-yet-cleaned session; at most 160 MiB of logical reservations |
 | Expiry | Incomplete pre-processing sessions expire after 24 hours |
 | Status | Foreground PROCESSING poll approximately every second; stop on terminal state; network failure shows status unknown and manual check |
 
@@ -100,8 +100,8 @@ Persist sessions and part manifests in PostgreSQL; store temporary parts and com
 ### File identity, progress and concurrency
 
 1. Browser computes the whole-file hash before session creation; show Checking your file without a fake percentage. The server binds immutable size/hash to the session.
-2. Enforce actual received bytes and a bounded idle/receive timeout; Content-Length and MIME are not trusted. Limit buffers/streams before accepting work.
-3. Acknowledge a part only after storage and a unique manifest entry are confirmed. Same index/hash/size is idempotent; different content returns 409. Use immutable part keys so conflicting requests cannot overwrite acknowledged bytes.
+2. Enforce actual received bytes and a 30-second hard receive deadline; Content-Length and MIME are not trusted. Limit buffers/streams before accepting work.
+3. Acknowledge a part only after storage and a unique manifest entry are confirmed. While the session accepts parts (CREATED/UPLOADING), the same index/hash/size is idempotent; different content returns 409. Later states reject part registration. Use immutable part keys so conflicting requests cannot overwrite acknowledged bytes.
 4. Part registration, cancel and complete recheck state under a row lock/conditional transaction. Late parts cannot revive a canceled, expired or processing session. Never hold an open SQL transaction while waiting for browser upload bytes.
 5. Progress is `floor(sum(unique acknowledged part bytes) / expectedSize × 100)`. Storage writes without a confirmed manifest are not progress. Retry after an uncertain response queries status first.
 6. After refresh, query the session before requesting a file. Only resume pre-processing sessions; reselected content must match the whole-file hash. File name/size alone are insufficient.
@@ -113,7 +113,7 @@ SHA-256 establishes content consistency, not authorization, malware safety or co
 
 States: CREATED → UPLOADING → PROCESSING → READY or FAILED. CREATED/UPLOADING can become CANCELED or EXPIRED. PROCESSING cancellation is deferred. Failed/expired/canceled sessions require a new upload; a part-level network failure alone does not fail the session.
 
-A single worker scans persistent processing work, including after restart. Persist attempt count, start/deadline and next-attempt time. Initial configurable design: 60 seconds per finalization attempt, at most two attempts with a two-second delay for transient storage failures; format/hash errors do not retry. Abort and settle the previous attempt before retrying, and fence late attempts from publishing. Validate these parameters with real local samples before claiming performance.
+A single worker scans persistent processing work, including after restart. Persist attempt count, start/deadline and next-attempt time. Runtime policy constants set 60 seconds per finalization attempt, at most two attempts and a two-second delay for transient storage failures; format/hash errors do not retry. These are code constants, not environment settings; changes to schema-enforced bounds also require a new migration. Abort and settle the previous attempt before retrying, and fence late attempts from publishing. Validate these parameters with real local samples before claiming performance.
 
 Write the final object, then atomically create Asset/FileDetail and mark the session READY in PostgreSQL. A unique upload association prevents duplicate publication. A lost commit acknowledgement requires querying by upload ID before retry or cleanup. Keep final objects while the database outcome is uncertain; never delete possibly referenced bytes. When infrastructure is unavailable, persist/reconcile the uncertainty once it returns rather than inventing a known terminal outcome. A process watchdog is not a guarantee of responsiveness during a deadlock or outage.
 
@@ -121,7 +121,7 @@ Terminal-session temporary parts are eligible for best-effort cleanup with retry
 
 ## 6. Status and deletion contract
 
-Upload status returns `uploadId`, `state`, `fileSizeBytes`, `chunkSizeBytes`, `totalParts`, sorted `receivedParts`, `receivedBytes`, `uploadPercent`, `expiresAt`, `assetAvailable`, `asset` and `error`. A completed asset is present only when READY and currently active. No internal object keys are exposed.
+Upload status returns `uploadId`, `state`, `fileName`, `fileSizeBytes`, `expectedSha256`, `chunkSizeBytes`, `totalParts`, sorted `receivedParts`, `receivedBytes`, `uploadPercent`, `expiresAt`, `assetAvailable`, `asset` and `error`. A completed asset is present only when READY and currently active. No internal object keys are exposed.
 
 - First soft DELETE sets `deletedAt`; repeat same-project DELETE returns 204 without changing its first deletion time. Missing/wrong-project ID returns 404. Keep metadata, detail records, completed original and unique upload association.
 - Default list, detail, resized-preview and content queries exclude deleted rows. New content requests after deletion return 404; previously delivered bytes cannot be recalled. Use no-store and keep file access behind the API.
@@ -134,11 +134,11 @@ Upload status returns `uploadId`, `state`, `fileSizeBytes`, `chunkSizeBytes`, `t
 Use the [single Figma review page](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home-%C2%B7-Photo-management?node-id=66-282). It is an editable layout reference, not a component-complete library or runnable prototype.
 
 - Project context plus Links/Photos/Videos sections; reuse Panda roles and Button recipe. Keep original-photo behavior working while adding sections.
-- Video: choose → check file → upload → 100% transferred / Finalizing → published card only on READY + available asset. Closing a dialog retains an upload task row; explicitly canceling ends a pre-processing session. A task row is not a published asset.
+- Video: choose → check file → upload → 100% transferred / Finalizing → published card only on READY + available asset. Hiding the inline upload controls retains the task row; explicitly canceling ends a pre-processing session. A task row is not a published asset.
 - Keep only project/upload IDs and recovery metadata locally, never file bytes. Stop irrelevant polling and avoid stale responses restoring deleted cards.
 - Pending requests disable repeat actions. Validation errors stay by their input; ambiguous results require status/list reconciliation. Delete removes the card only after confirmation; failure keeps it visible.
-- Native video controls, no autoplay, playsInline, a 16:9 container with contain for portrait/landscape. Serve HTTP Range through the storage/framework capability and verify 206/416. Show a clear playback error independently of storage availability.
-- Dialog focus/keyboard behavior and responsive controls need implementation checks. Keep one-column mobile layout and controls at least 44px tall; preserve existing 20px mobile and 32px tablet/desktop page padding unless a measured layout issue requires a change.
+- Native video controls, no autoplay, playsInline, a 16:9 container with contain for portrait/landscape. The API validates a single HTTP byte range and streams the requested bytes through the storage SDK; unsatisfiable or multiple ranges return 416. Show a clear playback error independently of storage availability.
+- Keyboard/focus behavior and responsive controls need verification; the upload form is inline, with native link/photo delete confirmation and inline video delete confirmation. Keep one-column mobile layout and controls at least 44px tall; preserve existing 20px mobile and 32px tablet/desktop page padding unless a measured layout issue requires a change.
 
 No HLS/DASH, transcoding, generated video posters, CDN/cache layer, duration/resolution guarantee, auth, documents, custom fields or project editing. READY means stored/available, not guaranteed playable in every browser.
 

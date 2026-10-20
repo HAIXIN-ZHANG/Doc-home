@@ -1,14 +1,12 @@
-# Local delivery verification
+# Delivery verification
 
-Date: 2026-10-20 (Australia/Perth). Scope: the approved seven increments, Links + Photos + Videos and shared soft deletion.
+Date: 2026-10-20 (Australia/Perth). Scope: Links + Photos + Videos with shared soft deletion.
 
-## Changes and review
+Evidence below spans multiple revisions. The latest code review reran typechecks, lint and unit/component tests; integration, browser and local build results come from the earlier mixed-asset verification. Documentation-only changes do not constitute another execution of those suites. Hosted CI status is available in [PR #2 checks](https://github.com/HAIXIN-ZHANG/Doc-home/pull/2/checks).
 
-Feature commits remain separate: `479b76c` upload protocol/persistence; `39b3cd1` durable processing/publication/Range; `93e1498` upload/recovery/player UI. Follow-up review fixes are in `20555bf`: recover from a confirmed missing session; record uncertain part-write identity; read state/parts under the same session lock. Added tests exercise cancellation while a PUT is actually in flight and simultaneous duplicate PUTs. Feature increments remain separate. A later user-requested cleanup removed the duplicate initialization history and content-free merge; the original refs are archived outside this repository.
+## Latest local code checks
 
-Personal learning/commit notes are outside this repository. This file records reproducible project verification, not a candidate interview narrative.
-
-## Executed checks
+Executed after the naming and response-validation changes in `1617e4c`:
 
 | Check | Result |
 | --- | --- |
@@ -16,17 +14,26 @@ Personal learning/commit notes are outside this repository. This file records re
 | `pnpm lint` | Both applications passed |
 | `pnpm --filter api test` | 12 suites, 157 passed; 35 opt-in integration cases skipped |
 | `pnpm --filter web test` | 4 suites, 37 passed |
-| `VIDEO_TEST_FILE=/absolute/sample.mp4 pnpm --filter api test:integration` | 20 original asset + 15 video cases passed with real disposable PostgreSQL/S3Mock |
+
+That review clarified controller/DTO/entity names and explicit public-field mapping. Mixed-response parsing now verifies every asset's project association before adapting photos to the legacy DTO; a new regression covers a mismatched photo project. No dependency or migration SQL changed.
+
+## Earlier integration, browser and build checks
+
+These passed during the mixed-asset delivery and architecture follow-up, before `1617e4c`. They were not rerun for that final naming/validation review.
+
+| Check | Recorded result |
+| --- | --- |
+| `VIDEO_TEST_FILE=/absolute/sample.mp4 pnpm --filter api test:integration` | 20 asset + 15 video cases passed with disposable PostgreSQL/S3Mock |
 | `pnpm --filter api build` | Passed |
-| Webpack production build | Passed; used by the local E2E runner. The default project build command remains unchanged |
-| `pnpm test:e2e` with the two external video inputs | Four serial browser workflows passed against real API/storage/production web builds |
-| Shell syntax / whitespace | E2E runner and existing CI change detector passed `bash -n`; `git diff --check` passed |
+| `pnpm --filter web exec next build --webpack` | Passed; also used by the local E2E runner |
+| `pnpm test:e2e` with two external video inputs | Four serial Chrome workflows passed against real API/storage/production web builds |
+| Shell syntax / whitespace | Runner and CI change-detection script syntax passed `bash -n`; `git diff --check` passed |
 
 Integration coverage includes existing photo/tombstone migration and rollback guards; preserved originals/IDs; link validation/transaction rollback; correct project/type boundaries; actual receiving-size/admission limits; duplicate and conflicting parts; part/cancel and complete/cancel races; expiry; processing restart and bounded retry; cleanup outage; uncertain storage writes and SQL commit acknowledgement; video Range/416; soft deletion and no resurrection. Fault injection uses in-process test hooks with real SQL/storage boundaries; it is not a claim that arbitrary infrastructure failures have been simulated.
 
 ## Browser evidence
 
-Installed Playwright with installed Google Chrome, headless, at loopback ports 33500/33501. The Browser plugin is not available; no browser or package was installed. Tests generate tiny real PNG/JPEG fixtures with the existing Sharp dependency. Media and screenshots stay outside Git.
+The automated run used the existing Playwright and Google Chrome installations, headless, at loopback ports 33500/33501. Tests generate real PNG/JPEG fixtures with the existing Sharp dependency. Input videos and generated runner artifacts stay outside Git; the selected documentation screenshots below are committed separately.
 
 | Workflow | Verified behavior |
 | --- | --- |
@@ -59,34 +66,14 @@ One API/worker instance, 20 MiB MP4, bounded merge buffers and finite container 
 
 ## AI assistance
 
-Implementation, test scaffolding and documentation used AI assistance. The commands above were executed locally and their results recorded. Candidate understanding and reviewer sign-off should be assessed separately from automated test evidence.
+Codex assisted implementation, test scaffolding, review and documentation. The results above record executed checks, not candidate understanding or reviewer sign-off. Personal interview notes remain outside this repository.
 
-## Readability and boundary review
+## History and review boundaries
 
-A follow-up review retained the HTTP contracts and database schema while clarifying names and ownership: generic S3 object operations; video entities in `videos`; direct worker storage injection; explicit upload status responses; named processing limits; and separate claim/assemble/publish/failure operations. The frontend now composes one initial mixed response in `project-assets`, validates it before adaptation, and uses shared section/input/feedback recipes and components. Four additional composition tests protect the compatible photo shape and reject malformed/mismatched/unsupported responses.
-
-The README is now an entry point for setup/configuration/API/checks; [architecture](ARCHITECTURE.md) records actual UI/module boundaries and consistency trade-offs. Coverage configuration includes assets/videos and the UI primitives rather than reporting only the earlier photo slice. No coverage percentage or threshold is claimed.
-
-Current follow-up checks passed: 157 API unit cases, 36 web cases, 35 PostgreSQL/S3Mock integration cases and four Chrome E2E workflows; both typechecks/lints and API/Webpack builds passed. The existing local images briefly failed an initial Docker image lookup; inspection confirmed the cached images and a retry passed without downloading anything.
-
-Before the follow-up, all 34 existing commits were inspected for structure and manifest/lockfile specifier consistency, with no mismatches or tracked environment/build/media paths found. The eight mixed-asset commits were additionally exported to isolated source snapshots and each passed API/web typechecks and unit/component tests using the existing installed dependencies. This is not a frozen reinstall or a claim of rerunning every historical emulator/browser/build check. That audit describes the pre-cleanup history; original refs are retained in an external Git bundle.
-
-## History normalization
-
-At the user's request, the repository was reduced to `main` and one linear feature branch. The local `init project` and remote `first commit` roots had identical README-only trees. The connecting merge had no content difference from its first parent. GitHub protects `main` against force-push and requires pull requests, so its original `first commit` root is retained as the shared ancestor; the feature commits are rebased onto that existing root. No protection rule was changed.
-
-All rebased feature commits preserve their file trees, messages, author and timestamp metadata. Five retired local backup branches and both pre-cleanup histories are retained in verified external Git bundles. One final documentation commit updates history references and archive guidance. Application, dependency, configuration and test files remain byte-for-byte identical to the previously verified version. No new functional-test execution is claimed by this history-only cleanup.
+Feature increments and review fixes remain separate. At the user's request, the feature history was made linear on the existing README-only `main`; earlier histories and retired backup branches were preserved in verified external Git bundles. History normalization retained application file trees and did not itself rerun functional tests. A prior audit checked historical source snapshots with existing dependencies; it was not a frozen reinstall or a full browser/integration/build run for every commit.
 
 ## Current mixed-asset screenshots
 
-Captured the already-running localhost:3000 page on 2026-10-20 at 1440px desktop, 834px tablet and 390px mobile widths. Each full-page image includes the link list, all three existing photo cards and the complete native video card, including controls and deletion. The captures preserve the current sample records; “PR closed” is a user-created link name. The visible Next.js development indicator is retained. No sample records were added or deleted for the screenshots.
+Captured the already-running localhost:3000 page on 2026-10-20 at 1440px desktop, 834px tablet and 390px mobile widths. Each full-page image includes the link list, all three existing photo cards and the complete native video card, including playback controls and the delete action. The captures preserve the current sample records; “PR closed” is a user-created link name. The visible Next.js development indicator is retained. No sample records were added or deleted for the screenshots.
 
 [Desktop](images/mixed-assets-desktop.jpg) · [Tablet](images/mixed-assets-tablet.jpg) · [Mobile](images/mixed-assets-mobile.jpg). These are visual evidence, not a new execution of the integration/E2E suite.
-
-## Final naming and contract double-check
-
-The final review expanded compressed asset/video entities and DTO decorators, named controller parameters `assetId`, `uploadId`, `partNumber` and `receivedBytes`, and removed a redundant link-response double cast in favour of explicit public-field mapping. Existing comments explain failure handling and invariants; no generic common/service hierarchy was introduced. Historical draft/publishing statements in the setup and scope documents were corrected.
-
-Mixed-response parsing now checks each asset's project association before adapting photo metadata to the legacy view shape. One new regression rejects a photo whose project differs from the requested project. Backend project association checks already existed; this closes the frontend runtime contract gap.
-
-Re-executed after these changes: both app typechecks and lints passed, 157 API unit cases passed (35 opt-in integration cases skipped), and 37 frontend cases passed across four suites. The previously recorded integration, browser and build results remain historical evidence; they were not re-executed for this narrowly scoped review. No dependency or migration SQL changed.

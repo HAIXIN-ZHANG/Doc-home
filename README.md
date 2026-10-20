@@ -47,7 +47,7 @@ Docker runs storage only; web/API run with pnpm. `docker compose down` retains n
 - **Links:** add an HTTP/HTTPS URL with an optional name. Blank names display the complete URL. Links open safely in a new tab; the API does not fetch the destination.
 - **Photos:** choose a real JPEG/PNG up to 5 MiB, upload, view the original, then reload. Optional content query parameters `w`/`h` resize proportionally without enlarging; each is 1–2048 pixels.
 - **Videos:** choose an MP4 up to 20 MiB. File hashing precedes upload. Confirmed chunks drive progress; 100% transfer is followed by Finalizing, then a published native player. Keep the original file for refresh/reselect/hash-verified resume.
-- **Recovery:** hiding upload controls keeps the task. Cancel explicitly ends incomplete work. Uncertain network results require a status/list check before retry; a confirmed missing session allows a new upload.
+- **Recovery:** hiding upload controls keeps the task. Cancel ends sessions that have not entered processing; processing cannot be canceled. Uncertain network results require a status/list check before retry; a confirmed missing session allows a new upload.
 - **Deletion:** confirm deletion of any type. The card disappears after server confirmation; original files and metadata remain. New reads reject deleted assets. There is no restore/Undo action in this scope.
 
 The native player supports play/pause/seek, no autoplay and portrait/landscape containment. READY confirms publication, not compatibility with every MP4 codec.
@@ -69,7 +69,7 @@ apps/web/src/
   features/links/         Link parsing, requests and creation/list UI
   features/photos/        Compatible photo upload/query/card behavior
   features/videos/        Upload protocol, response parsing, recovery hook, task and player
-  lib/validation.ts      Small runtime guards actually shared by features
+  lib/validation.ts      Small runtime guards shared by feature parsers
 apps/web/panda.config.ts  Design tokens, semantic roles, typography and control recipes
 apps/api/src/
   assets/                Shared asset model, typed responses, mixed reads and soft deletion
@@ -86,7 +86,7 @@ The public page URL remains `/projects/:projectId/photos` for compatibility; its
 
 ## HTTP API
 
-Use API port 3001 directly, or prefix paths with `/api` through the web app. IDs are UUIDs; project association is checked on every operation. Project ownership checks are not user authentication.
+Use API port 3001 directly, or prefix paths with `/api` through the web app. IDs are UUIDs; project association is checked on every operation. Project association checks are not user authorization; authentication is outside this scope.
 
 | Method / path | Behavior |
 | --- | --- |
@@ -98,10 +98,10 @@ Use API port 3001 directly, or prefix paths with `/api` through the web app. IDs
 | `GET /projects/:projectId/photos/:photoId/content` | Compatible original/resized content |
 | `DELETE /projects/:projectId/photos/:photoId` | Photo-only soft-delete alias |
 | `POST /projects/:projectId/uploads` | JSON file name/size/MIME/whole-file SHA-256; 201 persisted session |
-| `PUT /projects/:projectId/uploads/:uploadId/parts/:partNumber` | Raw `application/octet-stream`; exact zero-based 5 MiB parts; 201 first confirmation / 200 identical retry |
+| `PUT /projects/:projectId/uploads/:uploadId/parts/:partNumber` | Raw `application/octet-stream`; zero-based 5 MiB parts, final part uses the exact remainder; 201 first confirmation / 200 identical retry while accepting parts |
 | `GET /projects/:projectId/uploads/:uploadId` | Persisted status, confirmed parts/bytes, expiry, active asset or processing error |
 | `POST /projects/:projectId/uploads/:uploadId/complete` | 202 processing / 200 already ready / 410 `ASSET_DELETED` |
-| `DELETE /projects/:projectId/uploads/:uploadId` | Cancel incomplete work; processing/ready conflict with 409 |
+| `DELETE /projects/:projectId/uploads/:uploadId` | Cancel a pre-processing session; processing/ready conflict with 409 |
 
 Mixed responses contain public metadata and API-relative content URLs, never storage keys or deletion markers. Photo DTOs retain `originalName`; shared assets use `name`. Errors include `requestId`, also returned as `X-Request-Id`. Validation/conflicts use 400/409, actual byte excess 413, unsupported request/media 415 and busy upload capacity 429 with Retry-After. Unexpected failures are sanitized. Exact DTOs, status codes, limits and migration rollback guards are in [asset contracts](docs/ASSET_CONTRACTS.md).
 
@@ -131,9 +131,9 @@ PORTRAIT_VIDEO_TEST_FILE=/absolute/portrait.mp4 \
 pnpm test:e2e
 ```
 
-Both runners create disposable storage, preserve normal volumes and remove only their own containers. E2E builds/starts both apps, creates PNG/JPEG fixtures and prints an external screenshot/log directory. Media stays outside Git. Neither runner installs dependencies or pulls images. Test ports default to 33500/33501; override `E2E_WEB_PORT`/`E2E_API_PORT` if occupied.
+Both runners create disposable storage, preserve normal volumes and remove only their own containers. E2E builds/starts both apps, creates PNG/JPEG fixtures and prints an external screenshot/log directory. Input videos and generated test artifacts stay outside Git; selected documentation screenshots are committed separately. Neither runner installs dependencies or pulls images. Test ports default to 33500/33501; override `E2E_WEB_PORT`/`E2E_API_PORT` if occupied.
 
-[GitHub Actions](.github/workflows/ci.yml) selects web/API checks from the changed paths, then typechecks, lints, tests and builds. Public contract/root changes select both apps; docs-only changes skip app jobs. Storage integration/browser checks are opt-in locally, not hosted CI jobs. See the pull request checks for hosted CI status and [executed evidence](docs/DELIVERY_VERIFICATION.md) for local integration/browser results. No cloud deployment is included.
+[GitHub Actions](.github/workflows/ci.yml) selects web/API checks from the changed paths, then typechecks, lints, tests and builds. Public contract/root changes select both apps. Docs-only push diffs skip app jobs; pull requests compare the full branch against their base, so this feature PR still runs both apps. Storage integration/browser checks are opt-in locally, not hosted CI jobs. See the pull request checks for hosted CI status and [executed evidence](docs/DELIVERY_VERIFICATION.md) for local integration/browser results. No cloud deployment is included.
 
 ## Deliberate limits
 

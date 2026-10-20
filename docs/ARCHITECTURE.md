@@ -74,7 +74,7 @@ The shared Asset has an explicit type and one matching detail written atomically
 
 ## SQL and object storage are not one transaction
 
-A part counts only after S3 write and a unique SQL manifest confirmation. Same-index/same-hash retries are safe; different bytes conflict. A storage timeout may still have written bytes, so its internal key is logged for reconciliation.
+A part counts only after S3 write and a unique SQL manifest confirmation. While a session accepts parts, same-index/same-hash retries are safe; different bytes conflict. Processing and terminal states reject further parts. A storage timeout may still have written bytes, so its internal key is logged for reconciliation.
 
 Finalization writes the complete object before the Asset/FileDetail/READY transaction. A lost COMMIT reply may mean success: retain the object, query the unique upload association on a later scan and avoid destructive compensation. A full inventory/sweeper is deferred. SQL publication is atomic; SQL and S3 together are not.
 

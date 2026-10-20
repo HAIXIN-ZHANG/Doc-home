@@ -2,7 +2,7 @@
 
 This is a high-level direction, not a commitment to build the whole product. The assessment describes a project-detail view with links, documents, photos, videos and custom fields. Broader capabilities below are our proposals and would need user feedback and prioritisation.
 
-The exact take-home scope is defined in [Project assets scope delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md). That document distinguishes the committed baseline from the approved next increments; this blueprint is background. Target mixed-asset contracts are in [Asset contracts](ASSET_CONTRACTS.md).
+The exact take-home scope is defined in [Project assets scope delivery plan](PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md). That document records the delivered seven increments and deferred boundaries; this blueprint is background. Implemented mixed-asset contracts are in [Asset contracts](ASSET_CONTRACTS.md).
 
 ## Product purpose
 
@@ -12,7 +12,7 @@ Give project managers a shared workspace to understand a project and find the re
 
 | Epic | Possible capabilities | Relationship to this submission |
 | --- | --- | --- |
-| Project workspace | Project facts, ownership, status, dates; later project creation, editing and archive | A seeded project's name/address gives photos context |
+| Project workspace | Project facts, ownership, status, dates; later project creation, editing and archive | A seeded project's name/address gives all three asset types context |
 | Related assets | Links, documents, photos and videos; upload, open, preview, list and delete | Links/Photos/Videos delivered locally; documents deferred |
 | Custom information | Key-value fields; later templates and typed validation | Remaining brief capability, deferred |
 | Collaboration | Comments, assignments, notifications and activity history | Future product proposal |
@@ -39,11 +39,10 @@ Start with one modular API. Add separate workers, search infrastructure or more 
 
 ## Possible next increments after this submission
 
-1. Complete the selected Links + Photos + Videos expansion and shared soft-deletion behavior, following the seven commit boundaries in the scope plan. Link creation and video processing remain type-specific.
-2. After that selected expansion, consider document upload/download and custom fields. Clarify the brief's `XSL` document-format entry before implementing it.
-3. Consider generated media previews, larger-video support and transcoding only when actual format/size/preview requirements justify them.
-4. Expand project navigation and introduce identity, project permissions and protected file access before real customer use.
-5. Replace the local S3 emulator with provisioned private object storage; verify IAM and real-provider behavior, then introduce backups, restore/purge policy and object reconciliation as required.
-6. Extend checks with controlled deployment, production migration handling, rollback and monitoring. Collaboration, reporting and integrations follow validated demand.
+1. Consider document upload/download and custom fields beyond the delivered Links + Photos + Videos slice. Clarify the brief's `XSL` document-format entry before implementing it.
+2. Consider generated media previews, larger-video support and transcoding only when actual format/size/preview requirements justify them.
+3. Expand project navigation and introduce identity, project permissions and protected file access before real customer use.
+4. Replace the local S3 emulator with provisioned private object storage; verify IAM and real-provider behavior, then introduce backups, restore/purge policy and object reconciliation as required.
+5. Extend checks with controlled deployment, production migration handling, rollback and monitoring. Collaboration, reporting and integrations follow validated demand.
 
 These steps describe an evolution path, not a delivery schedule. No cloud provider, infrastructure tool, user-role model or performance target is assumed to be a company requirement.
