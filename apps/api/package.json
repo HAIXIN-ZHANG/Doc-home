@@ -16,7 +16,8 @@
     "test": "pnpm test:unit",
     "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.ts --runInBand",
     "test:watch": "pnpm test:unit --watch",
-    "test:coverage": "pnpm test:unit --coverage"
+    "test:coverage": "pnpm test:unit --coverage",
+    "test:integration": "bash test/run-soft-delete-integration.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",

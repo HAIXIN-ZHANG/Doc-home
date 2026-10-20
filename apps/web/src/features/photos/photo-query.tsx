@@ -54,7 +54,7 @@ function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
   async function handleDelete(photo: ProjectPhoto) {
     if (deletion.isPending || uploading || query.isFetching || needsRefresh || refreshing) return;
     // Native confirmation supplies keyboard/focus handling without a custom modal.
-    if (!window.confirm(`Delete "${photo.originalName}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete "${photo.originalName}"? It will be removed from this project.`)) return;
     setDeletionFeedback(null);
     try {
       const refreshed = await deletion.mutateAsync(photo);

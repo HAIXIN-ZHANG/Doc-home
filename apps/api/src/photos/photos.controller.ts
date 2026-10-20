@@ -46,12 +46,8 @@ export class PhotosController {
   deleteProjectPhoto(
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
     @Param('photoId', new ParseUUIDPipe()) photoId: string,
-    @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    const requestId: unknown = response.locals.requestId;
-    return this.photos.deleteProjectPhoto(
-      projectId, photoId, typeof requestId === 'string' ? requestId : undefined,
-    );
+    return this.photos.deleteProjectPhoto(projectId, photoId);
   }
 
   @Post()

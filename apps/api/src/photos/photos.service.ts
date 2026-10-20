@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import sharp from 'sharp';
 import { Project } from '../projects/entities/project.entity.js';
 import { StorageService } from '../storage/storage.service.js';
@@ -40,6 +40,7 @@ export class PhotosService {
       throw new NotFoundException('Project not found');
     }
 
+    // DeleteDateColumn excludes soft-deleted rows from these normal repository reads.
     // Query failures must propagate: an empty array means the query succeeded.
     const photos = await this.photos.find({
       where: { projectId },
@@ -129,26 +130,17 @@ export class PhotosService {
     return { buffer, mimeType: photo.mimeType };
   }
 
-  async deleteProjectPhoto(projectId: string, photoId: string, requestId?: string): Promise<void> {
-    const photo = await this.photos.findOne({
-      where: { id: photoId, projectId },
-      select: { id: true, storageKey: true },
-    });
-    if (!photo) throw new NotFoundException('Photo not found');
-
-    // Remove visibility first. A database failure must leave the original bytes intact.
-    const result = await this.photos.delete({ id: photoId, projectId });
-    if (result.affected === 0) throw new NotFoundException('Photo not found');
-    try {
-      await this.storage.deletePhoto(photo.storageKey);
-    } catch (error) {
-      // The record is already gone: do not report a failed deletion to the UI.
-      // Cleanup is best effort; a future reconciliation job must handle orphan files.
-      this.logger.error({
-        message: 'Photo removed but file cleanup failed',
-        requestId, projectId, photoId, storageKey: photo.storageKey,
-        errorType: error instanceof Error ? error.name : 'UnknownError',
-      });
+  async deleteProjectPhoto(projectId: string, photoId: string): Promise<void> {
+    // The predicate is evaluated atomically in SQL: concurrent/repeated deletes
+    // cannot replace the first deletion timestamp. Original bytes remain intact.
+    const result = await this.photos.update(
+      { id: photoId, projectId, deletedAt: IsNull() },
+      { deletedAt: () => 'CURRENT_TIMESTAMP' },
+    );
+    if (result.affected === 0 && !await this.photos.exists({
+      where: { id: photoId, projectId }, withDeleted: true,
+    })) {
+      throw new NotFoundException('Photo not found');
     }
   }
 
