@@ -52,6 +52,14 @@ Docker runs storage only; web/API run with pnpm. `docker compose down` retains n
 
 The native player supports play/pause/seek, no autoplay and portrait/landscape containment. READY confirms publication, not compatibility with every MP4 codec.
 
+## Running app screenshots
+
+Full-page captures of the local development app with sample data, including Links, Photos and Videos. These show rendered layouts, not additional functional-test results.
+
+| Desktop · 1440px | Tablet · 834px | Mobile · 390px |
+| --- | --- | --- |
+| [Full screenshot](docs/images/mixed-assets-desktop.jpg) | [Full screenshot](docs/images/mixed-assets-tablet.jpg) | [Full screenshot](docs/images/mixed-assets-mobile.jpg) |
+
 ## Read the code
 
 ```text

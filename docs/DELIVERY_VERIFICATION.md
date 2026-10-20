@@ -76,3 +76,9 @@ Before the follow-up, all 34 existing commits were inspected for structure and m
 At the user's request, the repository was reduced to `main` and one linear feature branch. The local `init project` and remote `first commit` roots had identical README-only trees. The connecting merge had no content difference from its first parent. GitHub protects `main` against force-push and requires pull requests, so its original `first commit` root is retained as the shared ancestor; the feature commits are rebased onto that existing root. No protection rule was changed.
 
 All rebased feature commits preserve their file trees, messages, author and timestamp metadata. Five retired local backup branches and both pre-cleanup histories are retained in verified external Git bundles. One final documentation commit updates history references and archive guidance. Application, dependency, configuration and test files remain byte-for-byte identical to the previously verified version. No new functional-test execution is claimed by this history-only cleanup.
+
+## Current mixed-asset screenshots
+
+Captured the already-running localhost:3000 page on 2026-10-20 at 1440px desktop, 834px tablet and 390px mobile widths. Each full-page image includes the link list, all three existing photo cards and the complete native video card, including controls and deletion. The captures preserve the current sample records; “PR closed” is a user-created link name. The visible Next.js development indicator is retained. No sample records were added or deleted for the screenshots.
+
+[Desktop](images/mixed-assets-desktop.jpg) · [Tablet](images/mixed-assets-tablet.jpg) · [Mobile](images/mixed-assets-mobile.jpg). These are visual evidence, not a new execution of the integration/E2E suite.
