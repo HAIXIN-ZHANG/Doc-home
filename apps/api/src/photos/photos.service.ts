@@ -1,18 +1,23 @@
 import { randomUUID } from 'node:crypto';
+
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import sharp from 'sharp';
-import { Project } from '../projects/entities/project.entity.js';
-import { StorageService } from '../storage/storage.service.js';
-import { MAX_PHOTO_BYTES } from './photo-upload.pipe.js';
-import type { PhotoUpload } from './photo-upload.pipe.js';
-import { MAX_PHOTO_DIMENSION } from './dto/photo-size-query.dto.js';
-import type { PhotoSizeQueryDto } from './dto/photo-size-query.dto.js';
-import type { PhotoMimeType } from '../assets/file-detail.entity.js';
+import { Repository } from 'typeorm';
+
 import type { StoredPhoto } from '../assets/asset-response.js';
 import { AssetsService } from '../assets/assets.service.js';
-import type { PhotoResponseDto, ProjectPhotosResponseDto } from './dto/project-photos-response.dto.js';
+import type { PhotoMimeType } from '../assets/file-detail.entity.js';
+import { Project } from '../projects/entities/project.entity.js';
+import { StorageService } from '../storage/storage.service.js';
+import { MAX_PHOTO_DIMENSION } from './dto/photo-size-query.dto.js';
+import type { PhotoSizeQueryDto } from './dto/photo-size-query.dto.js';
+import type {
+  PhotoResponseDto,
+  ProjectPhotosResponseDto,
+} from './dto/project-photos-response.dto.js';
+import { MAX_PHOTO_BYTES } from './photo-upload.pipe.js';
+import type { PhotoUpload } from './photo-upload.pipe.js';
 
 // A small compressed upload can still decode into a very large image.
 const MAX_SOURCE_PIXELS = 40_000_000;
@@ -49,15 +54,19 @@ export class PhotosService {
     };
   }
 
-  async uploadProjectPhoto(projectId: string, file: PhotoUpload, requestId?: string): Promise<PhotoResponseDto> {
-    if (!await this.projects.existsBy({ id: projectId })) {
+  async uploadProjectPhoto(
+    projectId: string,
+    file: PhotoUpload,
+    requestId?: string,
+  ): Promise<PhotoResponseDto> {
+    if (!(await this.projects.existsBy({ id: projectId }))) {
       throw new NotFoundException('Project not found');
     }
     const id = randomUUID();
     const extension = file.mimeType === 'image/jpeg' ? 'jpg' : 'png';
     // A display filename must never choose the object key or overwrite another upload.
     const storageKey = `projects/${projectId}/photos/${id}.${extension}`;
-    await this.storage.putPhoto(storageKey, file.buffer, file.mimeType);
+    await this.storage.putObject(storageKey, file.buffer, file.mimeType);
 
     let photo: StoredPhoto;
     try {
@@ -74,7 +83,10 @@ export class PhotosService {
       // Retain the file rather than break a valid record; reconcile using these IDs.
       this.logger.error({
         message: 'Photo metadata save failed; uploaded file retained for reconciliation',
-        requestId, projectId, photoId: id, storageKey,
+        requestId,
+        projectId,
+        photoId: id,
+        storageKey,
         errorType: error instanceof Error ? error.name : 'UnknownError',
       });
       throw error;
@@ -92,11 +104,14 @@ export class PhotosService {
     const photo = await this.assets.findPhoto(projectId, photoId);
     if (!photo) throw new NotFoundException('Photo not found');
 
-    const original = await this.storage.getPhoto(photo.storageKey, MAX_PHOTO_BYTES);
+    const original = await this.storage.readObjectBuffer(photo.storageKey, MAX_PHOTO_BYTES);
     if (!original) {
       this.logger.error({
         message: 'Photo metadata exists but its file is missing',
-        requestId, projectId, photoId, storageKey: photo.storageKey,
+        requestId,
+        projectId,
+        photoId,
+        storageKey: photo.storageKey,
       });
       throw new NotFoundException('Photo file not found');
     }
