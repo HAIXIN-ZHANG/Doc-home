@@ -2,7 +2,7 @@
 
 ## Status and source of truth
 
-The approved expansion is **Links + Photos + Videos with soft deletion**. Increments 1–6 are complete: scope/contracts, photo soft deletion, and the common asset model with Links. Persisted video sessions/parts/status/cancellation are implemented and tested; video processing/Range/soft deletion are implemented and tested; video upload/recovery/playback/delete UI is implemented and checked; final delivery verification remains in increment 7. Uncommitted URL/video drafts are not delivered capabilities.
+The approved expansion is **Links + Photos + Videos with soft deletion**. All seven local increments are complete, including follow-up review fixes and repeatable mixed-asset delivery checks. [Delivery verification](DELIVERY_VERIFICATION.md) records executed commands, coverage and limitations. This does not imply hosted CI, deployment or production readiness. Unregistered local DTO/migration drafts remain outside delivered code.
 
 The assessment's follow-up asks for at least two asset types. Photos plus Links reach that checkpoint; Videos add the explicitly chosen resumable upload, asynchronous finalization and queryable status. Keep the scope small around one seeded project. Do not extend project editing, documents or custom fields.
 
@@ -10,7 +10,7 @@ Use [Asset contracts](ASSET_CONTRACTS.md) for the target data/API/lifecycle rule
 
 | Area | Committed baseline | Approved target / deferred boundary |
 | --- | --- | --- |
-| Assets | Links, JPEG/PNG photos and MP4 videos; mixed list, upload recovery, playback and soft deletion | Preserve all three flows; final delivery regression remains |
+| Assets | Links, JPEG/PNG photos and MP4 videos; mixed list, upload recovery, playback and soft deletion | Preserve all three flows; delivery regression recorded |
 | Lifecycle | Atomic shared photo/link/video soft deletion, active-read filtering and retained originals | Restore/completed-original purge deferred |
 | Persistence | PostgreSQL metadata/sessions/manifests and S3Mock originals/chunks | Keep this stack; PostgreSQL upload sessions/manifests and S3 temporary parts |
 | UI | Responsive Links/Photos/Videos page with upload progress/recovery, native video and inline video-delete confirmation | One project view with three sections, upload status/recovery, media view and deletion feedback |
@@ -76,14 +76,16 @@ Figma references and running-app screenshots are separate evidence. The app capt
 
 [Empty-state design](images/photo-management-empty.png). Sample construction photos are illustrative project records, not customer evidence: [site overview — Dhaniel Hartono](https://unsplash.com/photos/PCDK46BCeh4), [site progress — shraga kopstein](https://unsplash.com/photos/7ypbeAK9t4E), [roof framing — Avel Chuklanov](https://unsplash.com/photos/IB0VA6VdqBw), via Unsplash. These are JPG examples; PDF/DOC support remains outside this slice.
 
-Current link browser evidence: [390px layout with long URL](images/links-mobile.png); 320px had no horizontal overflow. Native confirmation automation was blocked; the API/component deletion checks passed.
+Increment 3 link browser evidence: [390px layout with long URL](images/links-mobile.png); 320px had no horizontal overflow. Native confirmation automation was blocked; the API/component deletion checks passed.
 
 ## Verification and completion
 
-The README distinguishes this increment's unit/component, real PostgreSQL/S3Mock and build results from earlier photo-browser checks. Asset migration/link/photo and video integration have committed opt-in Jest suites totaling 32 cases and an isolated Docker runner; no normal application database was migrated for this verification. It covers the mixed-asset HTTP/SQL/storage boundary, not real AWS behavior. Increment 6 also verified real Chrome upload/playback/reload/resume/delete/cancel at desktop/mobile widths; the repeatable broader delivery evidence is still increment 7.
+The README distinguishes this increment's unit/component, real PostgreSQL/S3Mock and build results from earlier photo-browser checks. Asset migration/link/photo and video integration have committed opt-in Jest suites totaling 35 cases and an isolated Docker runner; no normal application database was migrated for this verification. It covers the mixed-asset HTTP/SQL/storage boundary, not real AWS behavior. Increment 7 adds a committed opt-in browser runner with four serial mixed-asset workflows and real landscape/derived portrait media.
 
 Before each implementation commit, run its relevant tests and checks. Commit 2 replaced hard-delete test expectations and verified old-data preservation, idempotency, object retention and guarded rollback on disposable data. Commit 3 verified common-model migration/backward compatibility on disposable data, including active/deleted records, old routes, object keys, transactional creation and guarded downgrade. Video protocol/finalizer tests belong with commits 4–5, frontend behavior tests with commit 6. Commit 7 adds cross-boundary evidence and real H.264/AAC landscape/portrait playback, seeking and deletion checks.
 
 Keep existing records/object data intact. Do not reset volumes, install dependencies or access cloud services as an implicit part of these steps. Review schema changes and document rollback limits before running them. Future authorization, audit, retention periods, restore UI, production AWS behavior, multi-instance processing and deployment remain explicitly incomplete.
 
 Increment 6 checks: 157 API unit cases, 31 web component cases, 32 isolated integration cases, both typechecks/lints and production builds passed (Webpack fallback for Next.js). Browser used a local 15-second H.264/AAC landscape sample; portrait playback and cross-browser checks remain unverified. No media is in Git, and no normal database was migrated.
+
+Increment 7 completed: 157 API unit cases, 32 web component cases, 35 disposable integration cases and four serial Chrome E2E workflows passed. Portrait track orientation, PNG/JPEG, link/photo/video deletion, missing-session recovery and 1440/834/390/320px layouts were checked. See delivery verification for exact commands and deliberate limitations.

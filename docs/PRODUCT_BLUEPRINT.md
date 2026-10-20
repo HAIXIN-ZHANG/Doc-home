@@ -35,7 +35,7 @@ flowchart LR
     CI -. later .-> CD[Deployment and rollback]
 ```
 
-Start with one modular API. Add separate workers, search infrastructure or more services when a validated product need warrants them. The implemented Links/Photos/Videos slice uses PostgreSQL and local S3Mock with AWS SDK v3. Video sessions, bounded asynchronous processing and native playback use the same SQL/storage architecture; final delivery verification remains in increment 7. A production deployment would use private object storage such as S3 while business records keep their stable storage keys.
+Start with one modular API. Add separate workers, search infrastructure or more services when a validated product need warrants them. The implemented Links/Photos/Videos slice uses PostgreSQL and local S3Mock with AWS SDK v3. Video sessions, bounded asynchronous processing and native playback use the same SQL/storage architecture; local delivery verification for all seven increments is recorded; production work remains a future scope. A production deployment would use private object storage such as S3 while business records keep their stable storage keys.
 
 ## Possible next increments after this submission
 

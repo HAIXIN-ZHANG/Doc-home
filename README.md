@@ -4,7 +4,7 @@ A project asset app built for the Sync Technologies take-home. Add external link
 
 **Stack:** Next.js / React / Panda CSS, NestJS, TypeORM / PostgreSQL, AWS SDK / Adobe S3Mock. Application and test code use TypeScript.
 
-**Delivery status:** increments 1–6 are implemented. Links, Photos and Videos work in the project view, including video upload recovery, progress/finalizing status, native playback and shared soft deletion. The remaining [increment 7](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md#seven-commit-boundaries) is final cross-boundary delivery verification and documentation. [Asset contracts](docs/ASSET_CONTRACTS.md) record the chosen protocol and limitations. The old unregistered combined migration/DTO drafts are preserved locally, not release code.
+**Delivery status:** all seven approved local increments are complete: Links, Photos, Videos, resumable uploads, asynchronous verification, native playback, shared soft deletion and repeatable delivery checks. See [delivery verification](docs/DELIVERY_VERIFICATION.md) for current evidence and limitations, [scope](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) for the commit boundaries, and [contracts](docs/ASSET_CONTRACTS.md) for the protocol. Hosted CI, cloud deployment and production readiness are not claimed.
 
 ## Run locally
 
@@ -142,13 +142,13 @@ Unit/component tests need no Docker or `.env`. Optional coverage commands are `p
 
 | Verification | Evidence for this increment |
 | --- | --- |
-| API Jest | 12 suites / 157 cases passed; 32 opt-in integration cases are skipped by the ordinary unit command |
-| Web Jest + React Testing Library | 3 suites / 31 cases passed: photo/link interactions plus video validation, progress, recovery, bounded concurrency, playback errors and deletion reconciliation |
-| PostgreSQL + S3Mock integration | 32 cases passed via `pnpm --filter api test:integration` (20 existing assets + 12 video scenarios): photo metadata/tombstone migration and alias compatibility; retained S3 bytes; named/unnamed links; invalid/forged input; transactional rollback; typed/shared soft deletion; guarded downgrade/reapply; video parts/races/expiry/admission, restart, retry, publication uncertainty, Range, no resurrection and real sample-byte equality |
+| API Jest | 12 suites / 157 cases passed; 35 opt-in integration cases are skipped by the ordinary unit command |
+| Web Jest + React Testing Library | 3 suites / 32 cases passed: photo/link interactions plus video validation, progress, recovery, bounded concurrency, playback errors and deletion reconciliation |
+| PostgreSQL + S3Mock integration | 35 cases passed via `pnpm --filter api test:integration` (20 existing assets + 15 video scenarios): photo metadata/tombstone migration and alias compatibility; retained S3 bytes; named/unnamed links; invalid/forged input; transactional rollback; typed/shared soft deletion; guarded downgrade/reapply; video parts/races/expiry/admission, restart, retry, publication uncertainty, Range, no resurrection and real sample-byte equality |
 | Typecheck and lint | Both applications passed locally |
 | API production build | Passed (`pnpm --filter api build`) |
 | Web production build | Passed with the installed Webpack fallback (`NEXT_TELEMETRY_DISABLED=1 pnpm --filter web exec next build --webpack`); default Turbopack previously hit this executor's local-port restriction, so the project default is unchanged |
-| Current browser checks | Installed Chrome, real production builds at temporary loopback ports 33500/33501: original over-limit rejection; local 15s H.264/AAC upload, finalizing, play/pause/seek, same-origin Range, refresh recovery, injected failed PUT and missing-chunk resume, wrong-file rejection, inline video deletion/content 404, cancel without publication, 390px/320px overflow checks; no page errors or framework overlay. Console resource failures corresponded to deliberately aborted PUTs during interruption/cancel testing; no JavaScript page errors were observed. |
+| Current browser checks | `pnpm test:e2e`: four repeatable serial Chrome workflows with real PostgreSQL/S3Mock/production builds, real PNG/JPEG, landscape + derived portrait MP4, interrupted/missing-session recovery, Range/416, typed deletion/no resurrection and 1440/834/390/320px layouts. No page errors/framework overlay; unexpected console errors fail the suite. See [evidence and repeat command](docs/DELIVERY_VERIFICATION.md). |
 | Earlier links checks | Named/unnamed links, invalid scheme, uncertain-result reconciliation, reload persistence, safe external-link attributes and long URL layouts were recorded in increment 3. That run's native link/photo delete confirmation stalled automation; component/API deletion tests passed. |
 | Earlier baseline checks | Clean cached install/migration/seed/startup and Chrome at 1440/834/390/320 widths were recorded before this increment; not rerun as soft-delete browser checks |
 
@@ -162,7 +162,7 @@ pnpm --filter api test:integration
 
 Requires a running local Docker engine, Bash/curl and the existing local `postgres:17-alpine` and `adobe/s3mock:5.2.3` images. The script never pulls images. It creates dedicated disposable containers on random loopback ports without user volumes, waits for readiness, runs the opt-in Jest suite, then removes only its own containers and their temporary anonymous volumes, including on failure. It does not migrate/reset the normal Compose database or use its bucket.
 
-Ordinary unit CI does not start Docker and skips these 32 cases. The integration test requires both `PHOTO_INTEGRATION_DATABASE_URL` and `PHOTO_INTEGRATION_S3_ENDPOINT`; the script supplies them. If running the Jest file directly, use only an empty disposable local database named `doc_home_soft_delete*` and a dedicated local S3Mock bucket `doc-home-soft-delete-test`: the suite deliberately exercises migration rollback on its fixtures. The runner is `apps/api/test/run-assets-integration.sh`; it does not install dependencies.
+Ordinary unit CI does not start Docker and skips these 35 cases. The integration test requires both `PHOTO_INTEGRATION_DATABASE_URL` and `PHOTO_INTEGRATION_S3_ENDPOINT`; the script supplies them. If running the Jest file directly, use only an empty disposable local database named `doc_home_soft_delete*` and a dedicated local S3Mock bucket `doc-home-soft-delete-test`: the suite deliberately exercises migration rollback on its fixtures. The runner is `apps/api/test/run-assets-integration.sh`; it does not install dependencies.
 
 [GitHub Actions](.github/workflows/ci.yml) runs typecheck, lint, Jest and build on branch pushes and PRs into `main`. App-only changes select that app; public photo/link/video contracts, shared/root configuration and lockfile changes select both. Docs-only changes skip application jobs. New branches, manual runs and unavailable comparison history check both.
 
@@ -205,8 +205,18 @@ The flow tested was project assets → MP4 selection → hash/check → confirme
 
 Local browser validation used installed Playwright 1.64.1 with installed Google Chrome, because the Browser plugin is absent and the package's matching bundled browser revision was unavailable. No package/browser was installed. Verified at 1440×1000, 390×844 and 320×844. Screenshots/logs and private test media remain outside Git. The user-authorized Downloads original was about 23 MB and correctly rejected by the 20 MiB cap; a local 15-second copy (14,187,243 bytes, H.264/AAC, 1280×720) was used for successful upload/playback. The original file was preserved.
 
-Current checks: `pnpm typecheck`, `pnpm lint`, API Jest (157), web Jest/RTL (31), disposable PostgreSQL/S3Mock integration (32, including `VIDEO_TEST_FILE`), API build and Webpack production build passed. No hosted CI, AWS, deployment or push is claimed. Remaining acceptance work is final cross-boundary regression evidence, portrait-video verification and delivery packaging in increment 7; no portrait sample was tested here.
+Increment 6 checkpoint checks: `pnpm typecheck`, `pnpm lint`, API Jest (157), web Jest/RTL (31), disposable PostgreSQL/S3Mock integration (32, including `VIDEO_TEST_FILE`), API build and Webpack production build passed. No hosted CI, AWS, deployment or push is claimed. This was the increment 6 checkpoint; increment 7 subsequently added repeatable mixed-asset and portrait-orientation browser checks, recorded in the delivery verification.
 
 ### Follow-up review
 
-Review of increments 4–6 fixed missing-session recovery (a confirmed GET 404 now clears its recovery ID), logged the identity of uncertain part writes, and read upload state/manifests under the same session lock. The integration suite now exercises a genuinely in-flight part racing cancellation, simultaneous duplicate PUTs, and an uncertain storage write. Current review checks: 157 API unit cases, 32 web component cases and 35 disposable integration cases passed; typecheck, lint and API build passed. The original three feature commits remain unchanged; fixes are a separate local commit. Browser delivery regression is the next increment.
+Review of increments 4–6 fixed missing-session recovery (a confirmed GET 404 now clears its recovery ID), logged the identity of uncertain part writes, and read upload state/manifests under the same session lock. The integration suite now exercises a genuinely in-flight part racing cancellation, simultaneous duplicate PUTs, and an uncertain storage write. Current review checks: 157 API unit cases, 32 web component cases and 35 disposable integration cases passed; typecheck, lint and API build passed. The original three feature commits remain unchanged; fixes are a separate local commit. Increment 7 subsequently verified the browser delivery flow.
+
+### Repeatable mixed-asset browser check
+
+```bash
+VIDEO_TEST_FILE=/absolute/landscape.mp4 \
+PORTRAIT_VIDEO_TEST_FILE=/absolute/portrait.mp4 \
+pnpm test:e2e
+```
+
+Both MP4s must be at most 20 MiB; the landscape file must exceed 5 MiB. This uses existing local images, installed Chrome, disposable storage, real production builds, and generated PNG/JPEG fixtures. Screenshots, logs and private media stay outside Git. Its runner cleans up only its own processes/containers and does not use the normal project database. See [delivery verification](docs/DELIVERY_VERIFICATION.md) for prerequisites, coverage and remaining limitations.
