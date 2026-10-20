@@ -47,7 +47,7 @@ jobs:
               case "$file" in
                 apps/web/*) web=true ;;
                 # Public API DTO changes can affect the web contract too.
-                apps/api/src/photos/dto/*|apps/api/src/assets/asset-response.ts|apps/api/src/assets/create-link.dto.ts) web=true; api=true ;;
+                apps/api/src/photos/dto/*|apps/api/src/assets/asset-response.ts|apps/api/src/assets/create-link.dto.ts|apps/api/src/videos/create-upload.dto.ts|apps/api/src/videos/video-policy.ts) web=true; api=true ;;
                 apps/api/*) api=true ;;
                 docs/*|*.md) ;; # Documentation alone does not change the applications.
                 *) web=true; api=true ;; # Shared/unknown configuration: check both safely.

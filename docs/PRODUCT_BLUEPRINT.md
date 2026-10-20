@@ -13,7 +13,7 @@ Give project managers a shared workspace to understand a project and find the re
 | Epic | Possible capabilities | Relationship to this submission |
 | --- | --- | --- |
 | Project workspace | Project facts, ownership, status, dates; later project creation, editing and archive | A seeded project's name/address gives photos context |
-| Related assets | Links, documents, photos and videos; upload, open, preview, list and delete | Links/Photos delivered; Videos selected next, documents deferred |
+| Related assets | Links, documents, photos and videos; upload, open, preview, list and delete | Links/Photos/Videos delivered locally; documents deferred |
 | Custom information | Key-value fields; later templates and typed validation | Remaining brief capability, deferred |
 | Collaboration | Comments, assignments, notifications and activity history | Future product proposal |
 | Discovery and reporting | Search, filtering, saved views, exports and dashboards | Future product proposal |
@@ -35,7 +35,7 @@ flowchart LR
     CI -. later .-> CD[Deployment and rollback]
 ```
 
-Start with one modular API. Add separate workers, search infrastructure or more services when a validated product need warrants them. The implemented Links/Photos slice uses PostgreSQL and local S3Mock with AWS SDK v3. Videos are selected next using the same SQL/storage architecture; processing/playback remain planned. A production deployment would use private object storage such as S3 while business records keep their stable storage keys.
+Start with one modular API. Add separate workers, search infrastructure or more services when a validated product need warrants them. The implemented Links/Photos/Videos slice uses PostgreSQL and local S3Mock with AWS SDK v3. Video sessions, bounded asynchronous processing and native playback use the same SQL/storage architecture; final delivery verification remains in increment 7. A production deployment would use private object storage such as S3 while business records keep their stable storage keys.
 
 ## Possible next increments after this submission
 

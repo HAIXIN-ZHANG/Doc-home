@@ -4,7 +4,7 @@ This repository is a time-boxed Sync Technologies take-home exercise. Read `docs
 
 ## Scope and honesty
 
-- The committed baseline is Links + Photos with shared soft deletion. The user approved a seven-increment expansion to Links + Photos + Videos with soft deletion; follow the scope plan and `docs/ASSET_CONTRACTS.md`. Work only on the increment currently requested. Documents and custom fields remain deferred.
+- The committed baseline is Links + Photos + Videos with shared soft deletion, persisted upload sessions and native video playback. The user approved a seven-increment expansion to Links + Photos + Videos with soft deletion; follow the scope plan and `docs/ASSET_CONTRACTS.md`. Work only on the increment currently requested. Documents and custom fields remain deferred.
 - The blueprint describes future proposals. Do not present them as implemented, add inactive UI controls for them, or expand into them without a reason tied to the assessment.
 - Update README and the delivery plan when the implementation changes. State what actually works, what was checked, and what remains incomplete. Do not invent metrics or test results.
 
