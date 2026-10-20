@@ -1,3 +1,4 @@
+import { getProjectLinks } from '@/features/links/link-api.server';
 import { notFound } from 'next/navigation';
 import { getProjectPhotos, PhotoApiError } from '@/features/photos/photo-api';
 import type { ProjectPhotos } from '@/features/photos/photo-types';
@@ -16,5 +17,6 @@ export default async function Page({ params }: { params: Promise<{ projectId: st
     // A failed query belongs in the route's error boundary, never an empty collection.
     throw error;
   }
-  return <ProjectPhotoQuery key={projectId} initialData={data} />;
+  const links = await getProjectLinks(projectId);
+  return <ProjectPhotoQuery key={projectId} initialData={data} initialLinks={links} />;
 }

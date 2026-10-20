@@ -1,3 +1,5 @@
+import { LinksSection } from '../links/links-section';
+import type { LinkAsset } from '../links/link-api';
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { css } from '../../../styled-system/css';
@@ -7,8 +9,9 @@ import { PhotoLayout } from './photo-layout';
 import { DEMO_PROJECT_ID } from './photo-urls';
 import type { ProjectPhotos } from './photo-types';
 
-export function PhotoPage({ project, photos, children, onDelete, deletingPhotoId, deletionBlocked }: ProjectPhotos & {
+export function PhotoPage({ project, photos, children, onDelete, deletingPhotoId, deletionBlocked, initialLinks }: ProjectPhotos & {
   children?: ReactNode;
+  initialLinks?: LinkAsset[];
 } & PhotoDeleteActions) {
   return (
     <PhotoLayout>
@@ -22,6 +25,7 @@ export function PhotoPage({ project, photos, children, onDelete, deletingPhotoId
           {project.address}
         </p>
       </section>
+      <LinksSection projectId={project.id} initialLinks={initialLinks} />
       <section aria-labelledby="photos-heading" className={css({ display: 'flex', flexDirection: 'column', gap: { mobile: '6', desktop: '8' } })}>
         <div className={css({ display: 'flex', flexDirection: 'column', gap: '2' })}>
           <div className={css({ display: 'flex', alignItems: 'center', gap: '3' })}>

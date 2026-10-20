@@ -47,4 +47,4 @@ if [[ "$ready" != true ]]; then
   printf 'Local integration services did not become ready within the startup budget.\n' >&2
   exit 1
 fi
-pnpm test:unit --runTestsByPath src/photos/photos-soft-delete.integration.spec.ts
+pnpm test:unit --runTestsByPath src/assets/project-assets.integration.spec.ts

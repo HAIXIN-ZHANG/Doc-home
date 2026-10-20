@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { LinkAsset } from '../links/link-api';
 import { QueryClient, QueryClientProvider, useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { css } from '../../../styled-system/css';
@@ -11,7 +12,7 @@ import { parseProjectPhotos } from './photo-types';
 import { deletePhoto, PhotoDeleteError } from './photo-delete-api';
 import type { ProjectPhoto, ProjectPhotos } from './photo-types';
 
-function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
+function PhotoQuery({ initialData, initialLinks }: { initialData: ProjectPhotos; initialLinks?: LinkAsset[] }) {
   const projectId = initialData.project.id;
   const client = useQueryClient();
   const uploading = useIsMutating({ mutationKey: ['upload-photo', projectId] }) > 0;
@@ -81,7 +82,7 @@ function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
   }
 
   return (
-    <PhotoPage {...query.data} onDelete={photo => { void handleDelete(photo); }}
+    <PhotoPage {...query.data} initialLinks={initialLinks} onDelete={photo => { void handleDelete(photo); }}
       deletingPhotoId={deletion.isPending ? deletion.variables?.id : undefined}
       deletionBlocked={deletion.isPending || uploading || query.isFetching || needsRefresh || refreshing}>
       {deletionFeedback ? <p role={deletionFeedback.error ? 'alert' : 'status'} className={css({ textStyle: 'small', color: deletionFeedback.error ? 'status.danger' : 'status.success' })}>{deletionFeedback.message}</p> : null}
@@ -102,8 +103,8 @@ function PhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
   );
 }
 
-export function ProjectPhotoQuery({ initialData }: { initialData: ProjectPhotos }) {
+export function ProjectPhotoQuery({ initialData, initialLinks }: { initialData: ProjectPhotos; initialLinks?: LinkAsset[] }) {
   // Scope this client/cache to the page; never share server-user state in a module singleton.
   const [client] = useState(() => new QueryClient());
-  return <QueryClientProvider client={client}><PhotoQuery initialData={initialData} /></QueryClientProvider>;
+  return <QueryClientProvider client={client}><PhotoQuery initialData={initialData} initialLinks={initialLinks} /></QueryClientProvider>;
 }

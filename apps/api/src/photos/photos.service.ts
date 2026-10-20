@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import sharp from 'sharp';
 import { Project } from '../projects/entities/project.entity.js';
 import { StorageService } from '../storage/storage.service.js';
@@ -9,9 +9,10 @@ import { MAX_PHOTO_BYTES } from './photo-upload.pipe.js';
 import type { PhotoUpload } from './photo-upload.pipe.js';
 import { MAX_PHOTO_DIMENSION } from './dto/photo-size-query.dto.js';
 import type { PhotoSizeQueryDto } from './dto/photo-size-query.dto.js';
-import type { PhotoMimeType } from './entities/photo.entity.js';
+import type { PhotoMimeType } from '../assets/file-detail.entity.js';
+import type { StoredPhoto } from '../assets/asset-response.js';
+import { AssetsService } from '../assets/assets.service.js';
 import type { PhotoResponseDto, ProjectPhotosResponseDto } from './dto/project-photos-response.dto.js';
-import { Photo } from './entities/photo.entity.js';
 
 // A small compressed upload can still decode into a very large image.
 const MAX_SOURCE_PIXELS = 40_000_000;
@@ -27,7 +28,7 @@ export class PhotosService {
 
   constructor(
     @InjectRepository(Project) private readonly projects: Repository<Project>,
-    @InjectRepository(Photo) private readonly photos: Repository<Photo>,
+    private readonly assets: AssetsService,
     private readonly storage: StorageService,
   ) {}
 
@@ -40,13 +41,7 @@ export class PhotosService {
       throw new NotFoundException('Project not found');
     }
 
-    // DeleteDateColumn excludes soft-deleted rows from these normal repository reads.
-    // Query failures must propagate: an empty array means the query succeeded.
-    const photos = await this.photos.find({
-      where: { projectId },
-      select: { id: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true },
-      order: { createdAt: 'DESC', id: 'DESC' },
-    });
+    const photos = await this.assets.findPhotos(projectId);
 
     return {
       project: { id: project.id, name: project.name, address: project.address },
@@ -64,9 +59,9 @@ export class PhotosService {
     const storageKey = `projects/${projectId}/photos/${id}.${extension}`;
     await this.storage.putPhoto(storageKey, file.buffer, file.mimeType);
 
-    let photo: Photo;
+    let photo: StoredPhoto;
     try {
-      const record = this.photos.create({
+      photo = await this.assets.savePhoto({
         id,
         projectId,
         originalName: file.originalName,
@@ -74,7 +69,6 @@ export class PhotosService {
         mimeType: file.mimeType,
         sizeBytes: file.buffer.length,
       });
-      photo = await this.photos.save(record);
     } catch (error) {
       // A save error can follow a committed transaction with a lost acknowledgement.
       // Retain the file rather than break a valid record; reconcile using these IDs.
@@ -95,10 +89,7 @@ export class PhotosService {
     requestId?: string,
   ): Promise<PhotoContent> {
     // Scope by both IDs; knowing a photo UUID must not bypass project association.
-    const photo = await this.photos.findOne({
-      where: { id: photoId, projectId },
-      select: { id: true, storageKey: true, mimeType: true },
-    });
+    const photo = await this.assets.findPhoto(projectId, photoId);
     if (!photo) throw new NotFoundException('Photo not found');
 
     const original = await this.storage.getPhoto(photo.storageKey, MAX_PHOTO_BYTES);
@@ -130,22 +121,12 @@ export class PhotosService {
     return { buffer, mimeType: photo.mimeType };
   }
 
-  async deleteProjectPhoto(projectId: string, photoId: string): Promise<void> {
-    // The predicate is evaluated atomically in SQL: concurrent/repeated deletes
-    // cannot replace the first deletion timestamp. Original bytes remain intact.
-    const result = await this.photos.update(
-      { id: photoId, projectId, deletedAt: IsNull() },
-      { deletedAt: () => 'CURRENT_TIMESTAMP' },
-    );
-    if (result.affected === 0 && !await this.photos.exists({
-      where: { id: photoId, projectId }, withDeleted: true,
-    })) {
-      throw new NotFoundException('Photo not found');
-    }
+  deleteProjectPhoto(projectId: string, photoId: string): Promise<void> {
+    return this.assets.softDelete(projectId, photoId, 'photo');
   }
 
   // Query and upload share this public contract; persistence-only fields stay private.
-  private toResponse(photo: Photo): PhotoResponseDto {
+  private toResponse(photo: StoredPhoto): PhotoResponseDto {
     return {
       id: photo.id,
       originalName: photo.originalName,
