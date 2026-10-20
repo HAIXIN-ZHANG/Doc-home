@@ -4,7 +4,7 @@ Date: 2026-10-20 (Australia/Perth). Scope: the approved seven increments, Links 
 
 ## Changes and review
 
-Feature commits remain separate: `93960b2` upload protocol/persistence; `7458352` durable processing/publication/Range; `8c2b9cc` upload/recovery/player UI. Follow-up review fixes are in `0e6eec9`: recover from a confirmed missing session; record uncertain part-write identity; read state/parts under the same session lock. Added tests exercise cancellation while a PUT is actually in flight and simultaneous duplicate PUTs. The original feature history was not rewritten.
+Feature commits remain separate: `f84a2a8` upload protocol/persistence; `dbab3b2` durable processing/publication/Range; `e2ec699` upload/recovery/player UI. Follow-up review fixes are in `e6ec95a`: recover from a confirmed missing session; record uncertain part-write identity; read state/parts under the same session lock. Added tests exercise cancellation while a PUT is actually in flight and simultaneous duplicate PUTs. Feature increments remain separate. A later user-requested cleanup removed the duplicate initialization history and content-free merge; the original refs are archived outside this repository.
 
 Personal learning/commit notes are outside this repository. This file records reproducible project verification, not a candidate interview narrative.
 
@@ -69,4 +69,10 @@ The README is now an entry point for setup/configuration/API/checks; [architectu
 
 Current follow-up checks passed: 157 API unit cases, 36 web cases, 35 PostgreSQL/S3Mock integration cases and four Chrome E2E workflows; both typechecks/lints and API/Webpack builds passed. The existing local images briefly failed an initial Docker image lookup; inspection confirmed the cached images and a retry passed without downloading anything.
 
-Before the follow-up, all 34 existing commits were inspected for structure and manifest/lockfile specifier consistency, with no mismatches or tracked environment/build/media paths found. The eight mixed-asset commits were additionally exported to isolated source snapshots and each passed API/web typechecks and unit/component tests using the existing installed dependencies. This is not a frozen reinstall or a claim of rerunning every historical emulator/browser/build check. Original history was retained.
+Before the follow-up, all 34 existing commits were inspected for structure and manifest/lockfile specifier consistency, with no mismatches or tracked environment/build/media paths found. The eight mixed-asset commits were additionally exported to isolated source snapshots and each passed API/web typechecks and unit/component tests using the existing installed dependencies. This is not a frozen reinstall or a claim of rerunning every historical emulator/browser/build check. That audit describes the pre-cleanup history; original refs are retained in an external Git bundle.
+
+## History normalization
+
+At the user’s request, local history was normalized to one `init project` root and a linear feature branch. The remote README-only initialization had the identical tree, and its connecting merge had no content difference from its first parent; both redundant history entries were removed. All 35 retained commits preserve their original file trees, messages, author and timestamp metadata. Five old local backup branches were archived in a verified external Git bundle before removal.
+
+The application, configuration and test files are unchanged by this operation. The follow-up documentation commit updates history references and archive guidance only. Previously recorded functional checks apply to the identical application tree; no new execution of those checks is claimed by the history cleanup. Updating already-published remote refs is a separate action.
