@@ -4,7 +4,7 @@ Date: 2026-10-20 (Australia/Perth). Scope: the approved seven increments, Links 
 
 ## Changes and review
 
-Feature commits remain separate: `93960b2` upload protocol/persistence; `7458352` durable processing/publication/Range; `8c2b9cc` upload/recovery/player UI. Follow-up review fixes are in `0e6eec9`: recover from a confirmed missing session; record uncertain part-write identity; read state/parts under the same session lock. Added tests exercise cancellation while a PUT is actually in flight and simultaneous duplicate PUTs. The original feature history was not rewritten.
+Feature commits remain separate: `479b76c` upload protocol/persistence; `39b3cd1` durable processing/publication/Range; `93e1498` upload/recovery/player UI. Follow-up review fixes are in `20555bf`: recover from a confirmed missing session; record uncertain part-write identity; read state/parts under the same session lock. Added tests exercise cancellation while a PUT is actually in flight and simultaneous duplicate PUTs. Feature increments remain separate. A later user-requested cleanup removed the duplicate initialization history and content-free merge; the original refs are archived outside this repository.
 
 Personal learning/commit notes are outside this repository. This file records reproducible project verification, not a candidate interview narrative.
 
@@ -69,4 +69,10 @@ The README is now an entry point for setup/configuration/API/checks; [architectu
 
 Current follow-up checks passed: 157 API unit cases, 36 web cases, 35 PostgreSQL/S3Mock integration cases and four Chrome E2E workflows; both typechecks/lints and API/Webpack builds passed. The existing local images briefly failed an initial Docker image lookup; inspection confirmed the cached images and a retry passed without downloading anything.
 
-Before the follow-up, all 34 existing commits were inspected for structure and manifest/lockfile specifier consistency, with no mismatches or tracked environment/build/media paths found. The eight mixed-asset commits were additionally exported to isolated source snapshots and each passed API/web typechecks and unit/component tests using the existing installed dependencies. This is not a frozen reinstall or a claim of rerunning every historical emulator/browser/build check. Original history was retained.
+Before the follow-up, all 34 existing commits were inspected for structure and manifest/lockfile specifier consistency, with no mismatches or tracked environment/build/media paths found. The eight mixed-asset commits were additionally exported to isolated source snapshots and each passed API/web typechecks and unit/component tests using the existing installed dependencies. This is not a frozen reinstall or a claim of rerunning every historical emulator/browser/build check. That audit describes the pre-cleanup history; original refs are retained in an external Git bundle.
+
+## History normalization
+
+At the user's request, the repository was reduced to `main` and one linear feature branch. The local `init project` and remote `first commit` roots had identical README-only trees. The connecting merge had no content difference from its first parent. GitHub protects `main` against force-push and requires pull requests, so its original `first commit` root is retained as the shared ancestor; the feature commits are rebased onto that existing root. No protection rule was changed.
+
+All rebased feature commits preserve their file trees, messages, author and timestamp metadata. Five retired local backup branches and both pre-cleanup histories are retained in verified external Git bundles. One final documentation commit updates history references and archive guidance. Application, dependency, configuration and test files remain byte-for-byte identical to the previously verified version. No new functional-test execution is claimed by this history-only cleanup.
