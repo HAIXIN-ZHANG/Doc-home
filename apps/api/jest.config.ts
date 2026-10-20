@@ -17,6 +17,8 @@ const config: Config = {
   restoreMocks: true,
   collectCoverageFrom: [
     'src/photos/**/*.ts',
+    'src/assets/**/*.ts',
+    'src/videos/**/*.ts',
     'src/storage/storage.service.ts',
     'src/http/**/*.ts',
     'src/config/environment.ts',
@@ -24,6 +26,7 @@ const config: Config = {
     '!src/**/*.spec.ts',
     '!src/**/*.module.ts',
     '!src/**/entities/**',
+    '!src/**/*.entity.ts',
     '!src/**/dto/project-photos-response.dto.ts',
   ],
   coverageDirectory: '<rootDir>/coverage',
