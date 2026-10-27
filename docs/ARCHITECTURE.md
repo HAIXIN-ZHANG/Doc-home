@@ -2,6 +2,28 @@
 
 The design is sized for one take-home project: a small modular API and one coherent project view. The important boundaries are explicit in code; there is no generic service/repository hierarchy or new infrastructure to operate.
 
+## System overview
+
+```mermaid
+flowchart LR
+    Browser["Browser"] -->|"Page requests and same-origin /api"| Web["Next.js · localhost:3000"]
+    Web -->|"Server reads and /api rewrite"| API["NestJS REST API · localhost:3001"]
+    subgraph Process["One API process · local Node.js"]
+        API
+        Worker["VideoWorker · periodic scan"]
+    end
+    subgraph Compose["Docker Compose · local infrastructure"]
+        DB[("PostgreSQL · metadata and upload state")]
+        S3["Adobe S3Mock · file bytes"]
+    end
+    API -->|"TypeORM"| DB
+    API -->|"StorageService"| S3
+    Worker -->|"Claim, reconcile and publish"| DB
+    Worker -->|"Read parts and write final object"| S3
+```
+
+Both apps run locally; Compose runs only PostgreSQL and S3Mock. The browser does not access the database or object storage directly. The worker runs inside the API process, using persisted upload state; it is not a separate service or a production queue. The current deployment model is one API instance.
+
 ## Frontend ownership
 
 `features/project-assets` owns project composition, the QueryClient boundary and the initial server read. It fetches the mixed list once, validates the response and adapts photo metadata to the existing photo view contract. Each creation feature owns its input, mutation and recovery behavior. The public `/projects/:projectId/photos` URL remains compatible.
@@ -22,6 +44,10 @@ Query keys include project ID and resource type. Each page owns its QueryClient;
 Browser response types are runtime-validated, not simply cast from `response.json()`. Small guards shared by the parsers live in `lib/validation.ts`. Backend and frontend transport types are intentionally separate: no additional contracts package is needed for this scope, and HTTP validation remains necessary either way.
 
 ## Design system
+
+[Figma design and architecture](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home?node-id=66-282) is the single **Doc-home · Design and architecture** page, organized into five areas: tokens; components and recipes; responsive layouts; frontend behavior; backend and database. The original photo layouts are retained within the responsive area, alongside the current mixed-assets view and upload/recovery states in the frontend area. The separate old page has been removed.
+
+Short English Design notes explain intent, module ownership and trade-offs for reviewers and AI-assisted development. They supplement the code and this document; they do not establish runtime behavior or replace validation.
 
 [Panda configuration](../apps/web/panda.config.ts) is the source for semantic colors, typography, responsive names and component recipes.
 
@@ -53,6 +79,68 @@ This is a project-sized foundation, not a claim to have delivered a complete mul
 Storage operations are named for objects (`putObject`, `readObjectBuffer`, `openObjectStream`, `deleteObject`), because photos, chunks and final videos share them. Services receive StorageService directly instead of reaching through another service's internal fields. `UploadStatusResponse` and shared video mapping make the public boundary explicit; internal storage keys never belong to the DTO.
 
 The shared Asset has an explicit type and one matching detail written atomically by its feature. SQL enforces scalar checks, keys and FKs; the application transaction enforces the type/detail relationship. FKs alone are not a polymorphic exclusivity constraint. Defensive response mapping rejects inconsistent metadata.
+
+## Database relationships
+
+The current model has six business tables. This diagram shows the relationships and selected columns; entities and SQL migrations define the full schema and constraints. `photos` is a retired table, and TypeORM migration history is not a business table.
+
+```mermaid
+erDiagram
+    projects ||--o{ assets : contains
+    projects ||--o{ video_uploads : receives
+    assets ||--o| link_details : has
+    assets ||--o| file_details : has
+    video_uploads ||--o{ upload_parts : tracks
+    video_uploads |o--o| file_details : publishes
+
+    projects {
+        uuid id PK
+        varchar name "200 characters"
+        text address
+        timestamptz created_at
+    }
+    assets {
+        uuid id PK
+        uuid project_id FK
+        varchar type "photo, link or video; length 12"
+        varchar name "2048 characters"
+        timestamptz created_at
+        timestamptz deleted_at "nullable; soft deletion"
+    }
+    link_details {
+        uuid asset_id PK,FK
+        text url
+    }
+    file_details {
+        uuid asset_id PK,FK
+        text storage_key UK
+        varchar mime_type "32 characters"
+        integer size_bytes
+        uuid upload_id FK,UK "nullable; video publication only"
+    }
+    video_uploads {
+        uuid id PK
+        uuid project_id FK
+        varchar name "255 characters"
+        integer size_bytes
+        varchar sha256 "64 characters"
+        varchar state "16 characters; CHECK constraint"
+        integer attempts
+        timestamptz expires_at
+        timestamptz created_at
+    }
+    upload_parts {
+        uuid upload_id PK,FK "composite primary key"
+        integer part_number PK "composite primary key; zero-based"
+        integer size_bytes
+        varchar sha256 "64 characters"
+        text storage_key UK
+    }
+```
+
+- `assets` is the published resource identity. Links use `link_details`; photos and videos use `file_details`. Application transactions enforce the matching detail for each asset type; the diagram's optional detail relationships do not imply SQL alone enforces exclusivity.
+- `video_uploads` and `upload_parts` describe work in progress. A session can exist without a published file. A published video has one unique upload association; photo file details have no upload association. Temporary part records can be cleaned up after completion.
+- `storage_key` identifies an object in S3Mock, not bytes stored in PostgreSQL. All shown foreign keys use `ON DELETE RESTRICT`; soft deletion does not delete these rows or completed objects. The upload-related foreign keys are defined in migrations even where the entity only declares a scalar UUID column.
 
 ## Video invariants and decisions
 

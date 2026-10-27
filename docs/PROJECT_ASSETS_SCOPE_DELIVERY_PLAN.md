@@ -58,13 +58,15 @@ The parameter values, HTTP results, lifecycle transitions and uncertainty handli
 
 ## Design reference
 
-[Single-page mixed-assets Figma review](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home-%C2%B7-Photo-management?node-id=66-282)
+[Figma design and architecture](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home?node-id=66-282)
 
-All new review frames are on **Assets v2 · Upload & preview**: desktop project assets; add/upload states; previews/delete/mobile; small states and trade-offs. This is an editable layout reference, not a runnable prototype or a fully bound component/Auto layout library. Original photo designs are preserved.
+One page, **Doc-home · Design and architecture**, contains five review areas: tokens; components and recipes; responsive layouts; frontend behavior; backend and database. It includes editable variables and component specimens, the mixed-assets view, upload/recovery and deletion references, and the six-table database model. Short English Design notes explain intent and boundaries. Original photo layouts are retained in the responsive area; the separate old page has been removed. This is review material, not a runnable prototype or an automatically synchronized component library.
 
 Keep Inter, existing Panda semantic roles, preset spacing/radii and Button recipe. Shared `AssetSection` handles heading/count/description structure; `LinksSection`, photo components and `VideosSection` own their type-specific forms, previews and deletion feedback. Reuse the current 20px mobile and 32px tablet/desktop page padding; the earlier 24px design suggestion is superseded to avoid unnecessary layout churn. Mobile is one column, tablet two photo columns, desktop three; uploads and viewers must fit narrow screens.
 
-### Baseline photo screenshots
+Current running-app captures include all three asset types: [Desktop](images/mixed-assets-desktop.jpg) · [Tablet](images/mixed-assets-tablet.jpg) · [Mobile](images/mixed-assets-mobile.jpg). Use these for the delivered UI; the photo-only captures below record an earlier checkpoint.
+
+### Historical photo-only screenshots
 
 Figma references and running-app screenshots are separate evidence. The app captures show local sample uploads, not photos created by the seed. List order is newest first, so it differs from the illustrative Figma order.
 

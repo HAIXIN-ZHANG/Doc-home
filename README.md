@@ -76,11 +76,16 @@ apps/api/src/
   photos/                Existing image validation, upload and bounded read-time resizing
   videos/                Upload sessions/manifests, request limits and durable finalizer
   storage/               S3 byte transport; no media or publication business rules
-  database/              Explicit entities, immutable migrations and repeatable seed
+  projects/              Project entity, lookup and seeded project context
+  database/              Connection configuration, explicit migrations and repeatable seed
   http/                  Request IDs/logging and sanitized error responses
 ```
 
+[Figma design and architecture](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home?node-id=66-282) brings tokens, components/recipes, responsive layouts, frontend behavior and backend/database design onto one review page. The original photo layouts are included as responsive references; the separate old page has been removed.
+
 Start with [Architecture and UI foundations](docs/ARCHITECTURE.md), then [asset contracts](docs/ASSET_CONTRACTS.md) for data/API/lifecycle details. [Delivery verification](docs/DELIVERY_VERIFICATION.md) separates unit, emulator and real-browser evidence. The [delivery plan](docs/PROJECT_ASSETS_SCOPE_DELIVERY_PLAN.md) records the seven original commit boundaries; [product blueprint](docs/PRODUCT_BLUEPRINT.md) is future direction.
+
+Entities live with their owning business modules; `database/` owns database setup and migrations.
 
 The public page URL remains `/projects/:projectId/photos` for compatibility; its component/module names describe the mixed-asset view. No new `common` framework, base repository or shared contracts package is needed.
 

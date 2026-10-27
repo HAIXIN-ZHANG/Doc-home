@@ -12,8 +12,10 @@ This document supersedes earlier SQLite/local-disk proposals. Keep Next.js/React
 | Asset | UUID, project FK, `type: link \| photo \| video`, display name, creation time and nullable `deletedAt` |
 | LinkDetail | Asset PK/FK and external `url`; only for `type=link` |
 | FileDetail | Asset PK/FK, unique internal `storageKey`, MIME type, positive byte size and nullable unique `uploadId`; only for photo/video |
-| VideoUpload | UUID, project FK, original filename, expected size and SHA-256, chunk size, state, expiry, attempts, processing deadline, next attempt time and public error code |
+| VideoUpload | UUID, project FK, original filename, expected size and SHA-256, state, expiry, attempts, processing deadline, next attempt time, cleanup flag and public error code |
 | UploadPart | `(uploadId, partNumber)` composite key, positive byte size, SHA-256 and unique internal storage key |
+
+`chunkSizeBytes` and `totalParts` are response values derived from the fixed 5 MiB policy and expected file size, not persisted session columns. If chunk sizing becomes configurable, version or persist the policy so existing sessions keep their original interpretation.
 
 Use explicit SQL checks for scalar constraints and transactions for cross-table rules: exactly one matching detail per asset; photo/video cannot use LinkDetail; a published video has a unique upload association. Foreign keys alone do not enforce the type/detail relationship. Do not introduce a generic repository framework or a single creation DTO with every type's fields optional.
 
@@ -131,7 +133,7 @@ Upload status returns `uploadId`, `state`, `fileName`, `fileSizeBytes`, `expecte
 
 ## 7. UI completion rules
 
-Use the [single Figma review page](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home-%C2%B7-Photo-management?node-id=66-282). It is an editable layout reference, not a component-complete library or runnable prototype.
+Use the [Figma design and architecture page](https://www.figma.com/design/8C3K9vrJg9zXlVye9ist7t/Doc-home?node-id=66-282). Its frontend area shows the mixed-assets view and upload/recovery states; its database area shows the six business tables. Tokens, components/recipes and responsive references share the same page. This is editable review material, not a runnable prototype; API behavior and data constraints are defined by code and migrations.
 
 - Project context plus Links/Photos/Videos sections; reuse Panda roles and Button recipe. Keep original-photo behavior working while adding sections.
 - Video: choose → check file → upload → 100% transferred / Finalizing → published card only on READY + available asset. Hiding the inline upload controls retains the task row; explicitly canceling ends a pre-processing session. A task row is not a published asset.
