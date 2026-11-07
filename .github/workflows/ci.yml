@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changed apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      web: ${{ steps.detect.outputs.web }}
+      api: ${{ steps.detect.outputs.api }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select checks
+        id: detect
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          web=false
+          api=false
+          # New branches, manual runs or unavailable history get a complete check.
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch || -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]] ||
+             ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            web=true
+            api=true
+          elif git diff --no-renames --name-only -z "$BASE_SHA" HEAD -- > "$RUNNER_TEMP/changed-files"; then
+            # Disable rename collapsing so moving a file checks both its old and new app.
+            while IFS= read -r -d '' file; do
+              case "$file" in
+                apps/web/*) web=true ;;
+                # Public API DTO changes can affect the web contract too.
+                apps/api/src/photos/dto/*|apps/api/src/assets/asset-response.ts|apps/api/src/assets/create-link.dto.ts|apps/api/src/videos/create-upload.dto.ts|apps/api/src/videos/upload-status.ts|apps/api/src/videos/video-policy.ts) web=true; api=true ;;
+                apps/api/*) api=true ;;
+                docs/*|*.md) ;; # Documentation alone does not change the applications.
+                *) web=true; api=true ;; # Shared/unknown configuration: check both safely.
+              esac
+            done < "$RUNNER_TEMP/changed-files"
+          else
+            web=true
+            api=true
+          fi
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "api=$api" >> "$GITHUB_OUTPUT"
+          echo "Selected checks: web=$web, api=$api"
+
+  web:
+    name: Web checks
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm --filter web typecheck
+      - name: Lint
+        run: pnpm --filter web lint
+      - name: Component tests
+        run: pnpm --filter web test
+      - name: Production build
+        run: pnpm --filter web build
+
+  api:
+    name: API checks
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm --filter api typecheck
+      - name: Lint
+        run: pnpm --filter api lint
+      - name: Unit tests
+        run: pnpm --filter api test
+      - name: Production build
+        run: pnpm --filter api build
